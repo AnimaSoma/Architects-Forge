@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #000;
+  color: #fff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+    Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f0f0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* custom cursor */
+.cursor-dot{
+  position:fixed;
+  left:0;
+  top:0;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#fff;
+  pointer-events:none;
+  mix-blend-mode:difference;
+  opacity:0;
+  z-index:50;
+}
+.cursor-aura{
+  position:fixed;
+  left:0;
+  top:0;
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  background:#fff;
+  filter:blur(10px);
+  pointer-events:none;
+  mix-blend-mode:difference;
+  opacity:0;
+  z-index:49;
+  transition:opacity .3s;
+}
+
+/* ripple effect spawned by CustomCursor.jsx */
+@keyframes ripple{
+  0%{transform:scale(0);opacity:.4}
+  100%{transform:scale(4);opacity:0}
+}
+.cursor-ripple{
+  position:fixed;
+  left:0;
+  top:0;
+  border:2px solid #fff;
+  border-radius:50%;
+  pointer-events:none;
+  mix-blend-mode:difference;
+  animation:ripple .8s ease-out forwards;
+  z-index:48;
+}

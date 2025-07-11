@@ -1,0 +1,1 @@
+// Reserved for advanced molecule interactions like bonding or state change
