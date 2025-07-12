@@ -90,3 +90,48 @@ body {
   animation:ripple .8s ease-out forwards;
   z-index:48;
 }
+
+/* ──────────────────────────────────────────────────────────
+   Mobile Optimisations & Touch-Friendly Enhancements
+   Everything below is additive so it will not interfere
+   with existing desktop-first styles.
+────────────────────────────────────────────────────────── */
+
+/* Smooth transitions for most interactive elements */
+button, a, input[type=range]::-webkit-slider-thumb, input[type=range]::-moz-range-thumb {
+  transition: background-color .2s ease, transform .2s ease, opacity .2s ease;
+}
+
+/* Base responsive typography */
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;           /* Slightly smaller default for tight spaces */
+  }
+  h1 { font-size: 2.2rem; }
+  h2 { font-size: 1.8rem; }
+  h3 { font-size: 1.5rem; }
+  p, li { line-height: 1.55; }
+
+  /* Hide desktop-only custom cursor on touch / coarse devices */
+  .cursor-dot,
+  .cursor-aura {
+    display: none !important;
+  }
+
+  /* Larger slider thumb & track for easier tapping */
+  input[type=range] {
+    height: 1.25rem;
+  }
+  input[type=range]::-webkit-slider-thumb,
+  input[type=range]::-moz-range-thumb {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  /* Ensure buttons have comfortable touch targets */
+  button {
+    min-height: 44px;
+    padding-left: 1.1rem;
+    padding-right: 1.1rem;
+  }
+}

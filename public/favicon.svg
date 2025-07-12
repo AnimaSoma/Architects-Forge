@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">
+  <!-- Background with media query support for light/dark modes -->
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #121220; }
+      .grid { stroke: #2a2a40; }
+      .node-stroke { stroke: #ffffff; }
+      .connection { stroke: rgba(255, 255, 255, 0.6); }
+    }
+    @media (prefers-color-scheme: light) {
+      .bg { fill: #f8fafc; }
+      .grid { stroke: #cbd5e1; }
+      .node-stroke { stroke: #1e293b; }
+      .connection { stroke: rgba(30, 41, 59, 0.6); }
+    }
+    /* Simplified animations with longer durations to reduce CPU usage */
+    .animate-slow { animation-duration: 6s; }
+    .animate-medium { animation-duration: 4s; }
+  </style>
+
+  <!-- Main background circle -->
+  <circle cx="32" cy="32" r="32" class="bg" />
+  
+  <!-- Simplified grid pattern - reduced opacity -->
+  <circle cx="32" cy="32" r="28" fill="none" class="grid" stroke-width="0.5" opacity="0.2" />
+  <circle cx="32" cy="32" r="20" fill="none" class="grid" stroke-width="0.5" opacity="0.2" />
+  <circle cx="32" cy="32" r="12" fill="none" class="grid" stroke-width="0.5" opacity="0.2" />
+  
+  <!-- Observer System nodes - with optimized animations -->
+  <circle cx="32" cy="14" r="5" fill="#4299e1" class="node-stroke" stroke-width="1" opacity="0.9">
+    <animate attributeName="opacity" values="0.7;0.9;0.7" dur="6s" repeatCount="indefinite" />
+  </circle>
+  
+  <circle cx="50" cy="32" r="5" fill="#34d399" class="node-stroke" stroke-width="1" opacity="0.9">
+    <animate attributeName="opacity" values="0.7;0.9;0.7" dur="6s" repeatCount="indefinite" begin="1.5s" />
+  </circle>
+  
+  <circle cx="32" cy="50" r="5" fill="#f59e0b" class="node-stroke" stroke-width="1" opacity="0.9">
+    <animate attributeName="opacity" values="0.7;0.9;0.7" dur="6s" repeatCount="indefinite" begin="3s" />
+  </circle>
+  
+  <circle cx="14" cy="32" r="5" fill="#8b5cf6" class="node-stroke" stroke-width="1" opacity="0.9">
+    <animate attributeName="opacity" values="0.7;0.9;0.7" dur="6s" repeatCount="indefinite" begin="4.5s" />
+  </circle>
+  
+  <!-- Physical System (central node) - simplified animation -->
+  <circle cx="32" cy="32" r="7.5" fill="#ffffff" opacity="0.9" stroke-width="0" class="node-stroke">
+    <animate attributeName="r" values="7;8;7" dur="8s" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Connections between nodes - reduced animation complexity -->
+  <line x1="32" y1="14" x2="32" y2="32" class="connection" stroke-width="1" stroke-linecap="round" />
+  
+  <line x1="50" y1="32" x2="32" y2="32" class="connection" stroke-width="1" stroke-linecap="round" />
+  
+  <line x1="32" y1="50" x2="32" y2="32" class="connection" stroke-width="1" stroke-linecap="round" />
+  
+  <line x1="14" y1="32" x2="32" y2="32" class="connection" stroke-width="1" stroke-linecap="round" />
+</svg>

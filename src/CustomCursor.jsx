@@ -3,10 +3,21 @@ import React, { useEffect, useRef } from 'react';
 // A simple magnetic cursor dot + trailing aura inspired by Lusion sites.
 // Uses CSS blend-mode difference so it inverts underlying colors.
 export default function CustomCursor() {
+  /* Detect coarse-pointer / touch devices early */
+  const isTouchDevice =
+    typeof window !== 'undefined' &&
+    ('ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      window.matchMedia('(pointer: coarse)').matches);
+
+  /* If on a touch device, don't render custom cursor at all  */
+  if (isTouchDevice) return null;
+
   const dotRef = useRef(null);
   const auraRef = useRef(null);
   const energyRef = useRef(0);          // ISRM-like energy tank
   const lastPosRef = useRef({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  const rafIdRef = useRef(null);        // track rAF id for cleanup
 
   useEffect(() => {
     const dot = dotRef.current;
@@ -62,12 +73,18 @@ export default function CustomCursor() {
       }
       prevEnergy = e;
 
-      requestAnimationFrame(render);
+      rafIdRef.current = requestAnimationFrame(render);
     };
 
-    window.addEventListener('mousemove', handleMove);
-    render();
-    return () => window.removeEventListener('mousemove', handleMove);
+    /* Attach listeners & kick off loop */
+    window.addEventListener('mousemove', handleMove, { passive: true });
+    rafIdRef.current = requestAnimationFrame(render);
+
+    /* ----------  Cleanup on unmount  ---------- */
+    return () => {
+      window.removeEventListener('mousemove', handleMove, { passive: true });
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
   }, []);
 
   return (

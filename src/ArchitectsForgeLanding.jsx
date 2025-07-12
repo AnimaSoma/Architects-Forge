@@ -1382,7 +1382,8 @@ Below, we break it down into three core components of the ISRM calculation.
         </div>
 
         {/* Let the component expand to fill the wrapper */}
-        <ProjectFluctusSim style={{ width: 100%", height: 100%" }} />
+        {/* fill entire section; width / height via tailwind for validity */}
+        <ProjectFluctusSim className="w-full h-full" />
       </section>
       <footer className="py-10 bg-black text-white-500 text-center text-lg">
          A real-time ISRM-based visualization of H₂O coherence, prediction error, and emergent phase behavior. Don't miss the Temperature Slider in the top right corner.
