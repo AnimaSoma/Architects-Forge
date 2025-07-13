@@ -16,9 +16,9 @@ const SimpleUSPVisualization = () => {
       alpha: 1.0,         // α - Weight for magnitude
       beta: 0.5,          // β - Weight for variance
       delta: 1.0,         // δ - Prediction error sensitivity
-      gamma: 0.3,         // γ - Energy cost factor (increased from 0.1)
+      gamma: 0.5,         // γ - Energy cost factor (increased from 0.3)
       eMax: 100.0,        // Maximum energy capacity
-      energyInflux: 0.3,  // Energy recovery rate (reduced from 5.0)
+      energyInflux: 0.1,  // Energy recovery rate (reduced from 0.3 to 0.1)
       updateThreshold: 20.0, // Threshold for update events
       updateRate: 0.7     // Rate of observer system updates
     },
@@ -27,6 +27,7 @@ const SimpleUSPVisualization = () => {
     updateSignal: 0,
     salience: 0,
     energyBudget: 100.0,
+    lastEnergyBudget: 100.0, // Track previous energy value to detect stagnation
     predictionError: 0,
     uIntegral: 0,
     physicalSystem: 0.5,
@@ -34,7 +35,10 @@ const SimpleUSPVisualization = () => {
     running: false,
     updateCount: 0,
     lastUpdateTime: 0,
-    energyDrainEffect: false // New state for energy drain visual effect
+    energyDrainEffect: false, // Visual effect for energy drain
+    stuckCounter: 0,          // Counter for detecting stuck energy
+    lastForcedDrop: 0,        // Time of last forced energy drop
+    energyStable: false       // Flag for stable energy (not fluctuating)
   });
 
   // Animation frame reference
@@ -52,7 +56,17 @@ const SimpleUSPVisualization = () => {
   // Calculate next state based on current state
   const calculateNextState = useCallback(() => {
     try {
-      const { params, physicalSystem, observerSystem, uIntegral, time, energyBudget } = state;
+      const { 
+        params, 
+        physicalSystem, 
+        observerSystem, 
+        uIntegral, 
+        time, 
+        energyBudget, 
+        lastEnergyBudget,
+        stuckCounter,
+        lastForcedDrop
+      } = state;
       
       // Fixed time step - slowed down by 50%
       const dt = 0.05; // Reduced from 0.1 for slower simulation
@@ -62,7 +76,7 @@ const SimpleUSPVisualization = () => {
       const predictionError = params.delta * error;
       
       // Calculate salience
-      const errorVariance = error * 0.1 * (1 + Math.random() * 0.5); // Reduced randomness
+      const errorVariance = error * 0.1 * (1 + Math.random() * 0.5);
       const salience = params.alpha * error + params.beta * errorVariance;
       
       // Calculate update signal
@@ -79,60 +93,115 @@ const SimpleUSPVisualization = () => {
       let updateCount = state.updateCount;
       let lastUpdateTime = state.lastUpdateTime;
       let energyDrainEffect = false;
+      let newStuckCounter = stuckCounter;
+      let forcedDrop = false;
       
-      // Base energy recovery (much slower now)
-      const energyInflux = params.energyInflux * dt;
+      // Check if energy is stuck by comparing with previous value
+      // If the energy hasn't changed much over several frames, increment the stuck counter
+      const energyDelta = Math.abs(energyBudget - lastEnergyBudget);
+      if (energyDelta < 0.01) {
+        newStuckCounter += 1;
+      } else {
+        newStuckCounter = 0;
+      }
       
-      // Constant background energy drain based on update signal
-      const backgroundDrain = 0.1 * updateSignal * dt;
+      // Force an energy drop if stuck for too long (20 frames)
+      if (newStuckCounter > 20) {
+        forcedDrop = true;
+        newStuckCounter = 0;
+      }
       
-      // Cumulative cost based on uIntegral
+      // Periodic forced energy drop (every 10-15 seconds)
+      const timeSinceLastForcedDrop = time - lastForcedDrop;
+      let newLastForcedDrop = lastForcedDrop;
+      
+      if (timeSinceLastForcedDrop > 10 + Math.random() * 5) {
+        forcedDrop = true;
+        newLastForcedDrop = time;
+      }
+      
+      // Calculate energy changes with oscillation and randomness
+      
+      // Base energy recovery with sine wave modulation
+      // This makes energy recovery oscillate over time
+      const oscillationFactor = 0.5 + 0.5 * Math.sin(time * 0.1);
+      const baseEnergyInflux = params.energyInflux * dt * oscillationFactor;
+      
+      // Add random spikes to energy influx (occasional boosts)
+      const randomBoost = Math.random() < 0.02 ? Math.random() * 2 : 0;
+      const energyInflux = baseEnergyInflux + randomBoost;
+      
+      // Background energy drain proportional to current energy
+      // Higher energy = faster passive drain
+      const backgroundDrainRate = 0.05 + (energyBudget / params.eMax) * 0.1;
+      const backgroundDrain = backgroundDrainRate * energyBudget * dt;
+      
+      // Additional drain based on update signal
+      const signalDrain = 0.2 * updateSignal * dt;
+      
+      // Cumulative cost based on uIntegral (with higher gamma)
       const cumulativeCost = params.gamma * uIntegral * dt;
       
+      // Random energy interruptions (occasional unexpected costs)
+      const randomDrain = Math.random() < 0.05 ? Math.random() * 5 : 0;
+      
       // Calculate total energy cost
-      let energyCost = backgroundDrain + cumulativeCost;
+      let energyCost = backgroundDrain + signalDrain + cumulativeCost + randomDrain;
       
-      // New uIntegral calculation
-      let newUIntegral = uIntegral + (updateSignal * dt);
+      // New uIntegral calculation with decay
+      // This ensures uIntegral doesn't grow indefinitely
+      const uIntegralDecay = 0.01 * uIntegral * dt;
+      let newUIntegral = uIntegral + (updateSignal * dt) - uIntegralDecay;
       
-      if (shouldUpdate) {
-        // Drastic energy cost for updates (40-60% of current energy)
-        const updateCost = energyBudget * (0.4 + (error * 0.2)); // 40-60% based on error magnitude
-        energyCost += updateCost;
+      // Handle updates and forced drops
+      if (shouldUpdate || forcedDrop) {
+        // More extreme energy cost for updates (50-70% of current energy)
+        // Higher error = higher cost percentage
+        const costPercentage = 0.5 + (error * 0.2); // 50-70% based on error magnitude
+        const updateCost = energyBudget * costPercentage;
+        
+        // Apply exponential scaling to make costs grow with error
+        const errorExponent = Math.pow(error, 1.5); // Exponential scaling
+        const additionalCost = 10 * errorExponent;
+        
+        energyCost += updateCost + additionalCost;
         
         // Reset uIntegral after significant expenditure
         newUIntegral = 0;
         
-        // Smoother transition to new state
-        newObserverSystem = observerSystem + params.updateRate * (newPhysicalSystem - observerSystem) * 0.7;
-        updateCount += 1;
-        lastUpdateTime = time;
+        // Update observer system if this was a real update (not just forced drop)
+        if (shouldUpdate) {
+          // Smoother transition to new state
+          newObserverSystem = observerSystem + params.updateRate * (newPhysicalSystem - observerSystem) * 0.7;
+          updateCount += 1;
+          lastUpdateTime = time;
+          
+          // Show update notification
+          setShowUpdateEvent(true);
+          setTimeout(() => setShowUpdateEvent(false), 3000);
+          
+          // Activate state change indicator
+          setStateChangeIndicator({
+            active: true,
+            phase: 1
+          });
+          
+          // State change animation sequence
+          setTimeout(() => {
+            setStateChangeIndicator({ active: true, phase: 2 });
+            
+            setTimeout(() => {
+              setStateChangeIndicator({ active: true, phase: 3 });
+              
+              setTimeout(() => {
+                setStateChangeIndicator({ active: false, phase: 0 });
+              }, 1000);
+            }, 1000);
+          }, 1000);
+        }
         
         // Activate energy drain visual effect
         energyDrainEffect = true;
-        
-        // Show update notification for longer (3 seconds instead of 2)
-        setShowUpdateEvent(true);
-        setTimeout(() => setShowUpdateEvent(false), 3000);
-        
-        // Activate state change indicator
-        setStateChangeIndicator({
-          active: true,
-          phase: 1
-        });
-        
-        // State change animation sequence
-        setTimeout(() => {
-          setStateChangeIndicator({ active: true, phase: 2 });
-          
-          setTimeout(() => {
-            setStateChangeIndicator({ active: true, phase: 3 });
-            
-            setTimeout(() => {
-              setStateChangeIndicator({ active: false, phase: 0 });
-            }, 1000);
-          }, 1000);
-        }, 1000);
       }
       
       // Calculate new energy budget with depletion
@@ -144,11 +213,16 @@ const SimpleUSPVisualization = () => {
         )
       );
       
+      // Detect if energy has stabilized (not fluctuating much)
+      const energyStable = Math.abs(newEnergyBudget - energyBudget) < 0.1 && 
+                          Math.abs(newEnergyBudget - lastEnergyBudget) < 0.1;
+      
       return {
         ...state,
         time: time + dt,
         updateSignal,
         salience,
+        lastEnergyBudget: energyBudget,
         energyBudget: newEnergyBudget,
         predictionError,
         uIntegral: newUIntegral,
@@ -156,7 +230,10 @@ const SimpleUSPVisualization = () => {
         observerSystem: newObserverSystem,
         updateCount,
         lastUpdateTime,
-        energyDrainEffect
+        energyDrainEffect,
+        stuckCounter: newStuckCounter,
+        lastForcedDrop: newLastForcedDrop,
+        energyStable
       };
     } catch (error) {
       console.error("Calculation error:", error);
@@ -191,9 +268,9 @@ const SimpleUSPVisualization = () => {
         alpha: 1.0,
         beta: 0.5,
         delta: 1.0,
-        gamma: 0.3,         // Increased from 0.1
+        gamma: 0.5,         // Increased from 0.3
         eMax: 100.0,
-        energyInflux: 0.3,  // Reduced from 5.0
+        energyInflux: 0.1,  // Reduced from 0.3 to 0.1
         updateThreshold: 20.0,
         updateRate: 0.7
       },
@@ -201,6 +278,7 @@ const SimpleUSPVisualization = () => {
       updateSignal: 0,
       salience: 0,
       energyBudget: 100.0,
+      lastEnergyBudget: 100.0,
       predictionError: 0,
       uIntegral: 0,
       physicalSystem: 0.5,
@@ -208,7 +286,10 @@ const SimpleUSPVisualization = () => {
       running: false,
       updateCount: 0,
       lastUpdateTime: 0,
-      energyDrainEffect: false
+      energyDrainEffect: false,
+      stuckCounter: 0,
+      lastForcedDrop: 0,
+      energyStable: false
     });
     setShowUpdateEvent(false);
     setStateChangeIndicator({ active: false, phase: 0 });
@@ -257,6 +338,25 @@ const SimpleUSPVisualization = () => {
     }
   }, [state.energyDrainEffect]);
 
+  // Force an energy drop if energy has been stable for too long
+  useEffect(() => {
+    if (state.running && state.energyStable) {
+      const timer = setTimeout(() => {
+        setState(prev => {
+          // Force a significant energy drop (20-40% of current energy)
+          const dropAmount = prev.energyBudget * (0.2 + Math.random() * 0.2);
+          return {
+            ...prev,
+            energyBudget: Math.max(0, prev.energyBudget - dropAmount),
+            energyDrainEffect: true
+          };
+        });
+      }, 5000); // 5 seconds of stability triggers a forced drop
+      
+      return () => clearTimeout(timer);
+    }
+  }, [state.running, state.energyStable]);
+
   // Enhanced bar visualization component with special effects for energy
   const BarVisualization = ({ value, maxValue, label, color, isEnergy = false }) => {
     // Special styling for energy when it's low or draining
@@ -275,6 +375,11 @@ const SimpleUSPVisualization = () => {
       // Add drain effect
       if (state.energyDrainEffect) {
         barColor = 'bg-red-600';
+        pulseEffect = 'animate-pulse';
+      }
+      
+      // Add stuck indicator
+      if (state.stuckCounter > 10) {
         pulseEffect = 'animate-pulse';
       }
     }
@@ -296,6 +401,11 @@ const SimpleUSPVisualization = () => {
         {isEnergy && value < 20 && (
           <div className="text-xs text-red-400 mt-1 animate-pulse">
             Energy critically low! Recovery needed.
+          </div>
+        )}
+        {isEnergy && state.stuckCounter > 15 && (
+          <div className="text-xs text-yellow-400 mt-1 animate-pulse">
+            Energy stuck - forcing fluctuation...
           </div>
         )}
       </div>
@@ -350,6 +460,17 @@ const SimpleUSPVisualization = () => {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-500 font-bold text-2xl">
           ENERGY DRAIN
         </div>
+      </div>
+    );
+  };
+
+  // Forced energy drop component
+  const ForcedEnergyDropIndicator = () => {
+    if (!state.energyStable) return null;
+    
+    return (
+      <div className="absolute top-2 right-2 bg-yellow-600/70 px-2 py-1 rounded text-xs animate-pulse">
+        Energy Stabilized - Forcing Fluctuation
       </div>
     );
   };
@@ -452,7 +573,7 @@ const SimpleUSPVisualization = () => {
               <input 
                 type="range" 
                 min="0.01" 
-                max="0.5" 
+                max="1.0" 
                 step="0.01" 
                 value={state.params.gamma}
                 onChange={(e) => updateParameter('gamma', parseFloat(e.target.value))}
@@ -463,13 +584,13 @@ const SimpleUSPVisualization = () => {
             <div>
               <label className="flex justify-between mb-1">
                 <span>Energy Influx: {state.params.energyInflux.toFixed(2)}</span>
-                <span className="text-xs bg-blue-800 px-2 py-1 rounded" title="Rate of energy recovery (very slow)">?</span>
+                <span className="text-xs bg-blue-800 px-2 py-1 rounded" title="Rate of energy recovery (extremely slow)">?</span>
               </label>
               <input 
                 type="range" 
-                min="0.1" 
-                max="2.0" 
-                step="0.1" 
+                min="0.01" 
+                max="0.5" 
+                step="0.01" 
                 value={state.params.energyInflux}
                 onChange={(e) => updateParameter('energyInflux', parseFloat(e.target.value))}
                 className="w-full"
@@ -547,6 +668,9 @@ const SimpleUSPVisualization = () => {
         
         {/* Energy Drain Effect Overlay */}
         <EnergyDrainEffect />
+        
+        {/* Forced Energy Drop Indicator */}
+        <ForcedEnergyDropIndicator />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">
@@ -677,6 +801,13 @@ const SimpleUSPVisualization = () => {
                   <p className="text-red-300 text-sm">Energy critically low - updates restricted</p>
                 </div>
               )}
+              
+              {/* Energy fluctuation message */}
+              {Math.abs(state.energyBudget - state.lastEnergyBudget) > 5 && (
+                <div className="mt-4 p-2 bg-blue-900/50 rounded text-center">
+                  <p className="text-blue-300 text-sm">Energy fluctuating: {Math.abs(state.energyBudget - state.lastEnergyBudget).toFixed(1)} units</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -696,7 +827,7 @@ const SimpleUSPVisualization = () => {
           <h3 className="text-lg font-semibold mb-2">Energy Budget</h3>
           <p className="text-gray-300 text-sm">
             (E<sub>max</sub> - γ∫<sub>0</sub><sup>t</sup> U(τ)dτ + I(t)) tracks available resources.
-            Updates consume energy that must be replenished over time. Energy recovery is slow, while updates are costly.
+            Updates consume energy that must be replenished over time. Energy recovery is extremely slow, while updates are very costly.
           </p>
         </div>
         
@@ -731,6 +862,10 @@ const SimpleUSPVisualization = () => {
           <div className="flex items-center">
             <div className="w-4 h-4 animate-pulse mr-2 bg-red-500"></div>
             <span className="text-sm">Energy Drain</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 animate-pulse mr-2 bg-yellow-500"></div>
+            <span className="text-sm">Forced Energy Drop</span>
           </div>
         </div>
       </div>
