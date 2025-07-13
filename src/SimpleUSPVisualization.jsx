@@ -51,7 +51,7 @@ const SimpleUSPVisualization = () => {
   // Calculate next state based on current state
   const calculateNextState = useCallback(() => {
     try {
-      const { params, physicalSystem, observerSystem, uIntegral, time } = state;
+      const { params, physicalSystem, observerSystem, uIntegral, time, energyBudget } = state;
       
       // Fixed time step - slowed down by 50%
       const dt = 0.05; // Reduced from 0.1 for slower simulation
@@ -63,13 +63,6 @@ const SimpleUSPVisualization = () => {
       // Calculate salience
       const errorVariance = error * 0.1 * (1 + Math.random() * 0.5); // Reduced randomness
       const salience = params.alpha * error + params.beta * errorVariance;
-      
-      // Calculate energy budget
-      const energyInflux = params.energyInflux * dt;
-      const energyBudget = Math.min(
-        params.eMax, 
-        params.eMax - params.gamma * uIntegral + energyInflux
-      );
       
       // Calculate update signal
       const updateSignal = salience * energyBudget * predictionError;
@@ -85,7 +78,17 @@ const SimpleUSPVisualization = () => {
       let updateCount = state.updateCount;
       let lastUpdateTime = state.lastUpdateTime;
       
+      // Calculate energy changes
+      let energyCost = 0;
+      
+      // Base energy recovery (slower than before)
+      const energyInflux = params.energyInflux * dt * 0.5;
+      
+      // Significant energy cost when update occurs
       if (shouldUpdate) {
+        // Higher energy cost for updates
+        energyCost = 30 + (error * 20); // Base cost + error-proportional cost
+        
         // Smoother transition to new state
         newObserverSystem = observerSystem + params.updateRate * (newPhysicalSystem - observerSystem) * 0.7;
         updateCount += 1;
@@ -113,16 +116,31 @@ const SimpleUSPVisualization = () => {
             }, 1000);
           }, 1000);
         }, 1000);
+      } else {
+        // Small continuous energy cost even without updates
+        energyCost = params.gamma * uIntegral * dt * 0.5;
       }
+      
+      // Calculate new energy budget with depletion
+      const newEnergyBudget = Math.max(
+        0, 
+        Math.min(
+          params.eMax,
+          energyBudget - energyCost + energyInflux
+        )
+      );
+      
+      // Update uIntegral with more significant accumulation
+      const newUIntegral = uIntegral + (updateSignal * dt) + (shouldUpdate ? 10 : 0);
       
       return {
         ...state,
         time: time + dt,
         updateSignal,
         salience,
-        energyBudget,
+        energyBudget: newEnergyBudget,
         predictionError,
-        uIntegral: uIntegral + updateSignal * dt,
+        uIntegral: newUIntegral,
         physicalSystem: newPhysicalSystem,
         observerSystem: newObserverSystem,
         updateCount,

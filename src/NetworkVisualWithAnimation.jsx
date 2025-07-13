@@ -107,11 +107,14 @@ const NetworkVisualWithAnimation = () => {
   // Simple simulation state
   const [simState, setState] = useState({
     running: false,
-    physicalValue: 0.5,
-    nodes: [],
-    consensusReached: false,
+    observerValue: 0.5,
+    physicalSystems: [],
+    thresholdMet: false,
+    updateTriggered: false,
     demoMode: false, // Special mode that runs animations without complex simulation
-    performanceMode: false // Automatically enabled on low-performance devices
+    performanceMode: false, // Automatically enabled on low-performance devices
+    // Threshold for OS update (as percentage of PS nodes)
+    updateThreshold: 0.5
   });
   
   // Time tracking
@@ -119,7 +122,7 @@ const NetworkVisualWithAnimation = () => {
   
   // Animation references
   const animationRef = useRef(null);
-  const physicalSystemRef = useRef(null);
+  const observerSystemRef = useRef(null);
   const nodeRefs = useRef([]);
   const connectionRefs = useRef([]);
   const containerRef = useRef(null);
@@ -146,15 +149,15 @@ const NetworkVisualWithAnimation = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, [simState.performanceMode]);
   
-  // Initialize nodes
+  // Initialize physical system nodes
   const initializeNodes = useCallback(() => {
-    const nodes = [];
+    const physicalSystems = [];
     
     for (let i = 0; i < nodeCount; i++) {
-      nodes.push({
+      physicalSystems.push({
         id: i,
-        observation: 0.5,
-        confirming: false,
+        value: 0.5,
+        active: false,
         energy: 1.0,
         // Add animation phase offset for each node
         phaseOffset: i * (Math.PI / nodeCount)
@@ -163,17 +166,17 @@ const NetworkVisualWithAnimation = () => {
     
     setState(prev => ({
       ...prev,
-      nodes,
-      physicalValue: 0.5,
-      consensusReached: false
+      physicalSystems,
+      observerValue: 0.5,
+      thresholdMet: false,
+      updateTriggered: false
     }));
     
     // Reset refs array
-    nodeRefs.current = nodes.map(() => React.createRef());
+    nodeRefs.current = physicalSystems.map(() => React.createRef());
     
     // Initialize connection refs
-    const connectionCount = (nodeCount * (nodeCount - 1)) / 2;
-    connectionRefs.current = Array(connectionCount).fill().map(() => React.createRef());
+    connectionRefs.current = Array(nodeCount).fill().map(() => React.createRef());
   }, [nodeCount]);
   
   // Initialize on mount and when nodeCount changes
@@ -220,55 +223,76 @@ const NetworkVisualWithAnimation = () => {
     setElapsedTime(prev => +(prev + 0.05).toFixed(2));
     
     setState(prev => {
-      // Calculate new physical system value using sine wave for predictable oscillation
-      const time = elapsedTime;
-      const newPhysicalValue = 0.5 + 0.4 * Math.sin(time * 0.25); // slower oscillation
-      
-      // Update each node with animation-focused changes
-      const newNodes = prev.nodes.map((node, i) => {
-        // Create phase-shifted observations for each node
-        const nodeTime = time + node.phaseOffset;
-        const newObservation = 0.5 + 0.3 * Math.sin(nodeTime * 0.25); // slower oscillation
+      // Update each physical system with animation-focused changes
+      const newPhysicalSystems = prev.physicalSystems.map((ps, i) => {
+        // Create phase-shifted values for each physical system
+        const nodeTime = elapsedTime + ps.phaseOffset;
+        const newValue = 0.5 + 0.4 * Math.sin(nodeTime * 0.25); // slower oscillation
         
-        // Determine if node is confirming based on simple time-based pattern
-        // This ensures some nodes will always be confirming for visual interest
-        const confirming = Math.sin(nodeTime) > 0.3;
+        // Determine if node is active based on simple time-based pattern
+        // This ensures some nodes will always be active for visual interest
+        const active = Math.sin(nodeTime) > 0.3;
         
         // Energy oscillates for visual effect
         const energy = 0.5 + 0.5 * Math.sin(nodeTime * 0.2);
         
         return {
-          ...node,
-          observation: newObservation,
-          confirming,
+          ...ps,
+          value: newValue,
+          active,
           energy,
-          phaseOffset: node.phaseOffset
+          phaseOffset: ps.phaseOffset
         };
       });
       
-      // Periodically trigger consensus for visual effect
-      const consensusReached = Math.sin(time * 0.15) > 0.7; // slower trigger
+      // Count active physical systems
+      const activeCount = newPhysicalSystems.filter(ps => ps.active).length;
+      
+      // Check if threshold is met
+      const thresholdMet = activeCount >= Math.ceil(newPhysicalSystems.length * prev.updateThreshold);
+      
+      // Determine if observer should update based on threshold
+      let newObserverValue = prev.observerValue;
+      let updateTriggered = false;
+      
+      if (thresholdMet) {
+        // Calculate average value of active physical systems
+        const activeValues = newPhysicalSystems
+          .filter(ps => ps.active)
+          .map(ps => ps.value);
+          
+        const avgValue = activeValues.reduce((sum, val) => sum + val, 0) / activeValues.length;
+        
+        // Gradually update observer value (slower update for better visualization)
+        newObserverValue = prev.observerValue + (avgValue - prev.observerValue) * 0.1;
+        
+        // Periodically trigger update visual for better feedback
+        updateTriggered = Math.sin(elapsedTime * 0.15) > 0.7;
+      }
       
       return {
         ...prev,
-        physicalValue: newPhysicalValue,
-        nodes: newNodes,
-        consensusReached
+        physicalSystems: newPhysicalSystems,
+        observerValue: newObserverValue,
+        thresholdMet,
+        updateTriggered: thresholdMet && updateTriggered
       };
     });
     
     // Direct DOM manipulation for animations if needed
-    if (physicalSystemRef.current) {
-      // Pulse effect on physical system
-      const scale = 1 + 0.1 * Math.sin(elapsedTime * 2);
-      physicalSystemRef.current.style.transform = `scale(${scale})`;
+    if (observerSystemRef.current) {
+      // Pulse effect on observer system when threshold is met
+      const scale = simState.thresholdMet 
+        ? 1 + 0.15 * Math.sin(elapsedTime * 2)
+        : 1;
+      observerSystemRef.current.style.transform = `scale(${scale})`;
     }
     
     // Continue animation if running
     if (simState.running) {
       animationRef.current = requestAnimationFrame(animationStep);
     }
-  }, [elapsedTime, simState.running, simState.performanceMode]);
+  }, [elapsedTime, simState.running, simState.performanceMode, simState.thresholdMet]);
   
   // Start animation
   const startAnimation = useCallback(() => {
@@ -335,15 +359,20 @@ const NetworkVisualWithAnimation = () => {
         
         // Rotate through node states for visual effect
         setState(prev => {
-          const newNodes = prev.nodes.map((node, i) => ({
-            ...node,
-            confirming: (i + frameCount) % 3 === 0
+          const newPhysicalSystems = prev.physicalSystems.map((ps, i) => ({
+            ...ps,
+            active: (i + frameCount) % 3 === 0
           }));
+          
+          // Count active physical systems
+          const activeCount = newPhysicalSystems.filter(ps => ps.active).length;
+          const thresholdMet = activeCount >= Math.ceil(newPhysicalSystems.length * prev.updateThreshold);
           
           return {
             ...prev,
-            consensusReached: frameCount % 30 < 15,
-            nodes: newNodes
+            physicalSystems: newPhysicalSystems,
+            thresholdMet,
+            updateTriggered: thresholdMet && (frameCount % 30 < 15)
           };
         });
       }, 500);
@@ -374,6 +403,14 @@ const NetworkVisualWithAnimation = () => {
     };
   }, [toggleAnimation]);
   
+  // Adjust threshold
+  const adjustThreshold = useCallback((newValue) => {
+    setState(prev => ({
+      ...prev,
+      updateThreshold: Math.max(0.1, Math.min(1.0, newValue))
+    }));
+  }, []);
+  
   return (
     <div className="bg-gradient-to-r from-purple-900/60 to-indigo-900/60 backdrop-blur-sm rounded-lg p-4 md:p-8 text-center">
       {/* Include animation styles */}
@@ -381,8 +418,8 @@ const NetworkVisualWithAnimation = () => {
       
       <h3 className="text-xl md:text-2xl font-semibold mb-4">Adaptation emerges from the regulation of coherence under energetic constraint.</h3>
       <p className="mb-6 text-sm md:text-base text-gray-300">
-        This visualization demonstrates how multiple Observer Systems work together to confirm
-        observations and reach consensus, creating a distributed form of consciousness.
+        This visualization demonstrates how an Observer System (OS) updates its state only when a threshold 
+        of Physical Systems (PS) become active, creating a more stable and energy-efficient form of adaptation.
       </p>
       
       {/* Animation Frame Counter - visible proof of animation */}
@@ -416,6 +453,26 @@ const NetworkVisualWithAnimation = () => {
             </div>
           </div>
         )}
+      </div>
+      
+      {/* Threshold control */}
+      <div className="mb-6 bg-black/30 p-3 rounded-lg max-w-md mx-auto">
+        <label className="flex justify-between mb-1 text-sm">
+          <span>Update Threshold: {Math.round(simState.updateThreshold * 100)}%</span>
+          <span className="text-xs bg-blue-800 px-2 py-1 rounded" title="Percentage of PS nodes that must be active to update OS">?</span>
+        </label>
+        <input 
+          type="range" 
+          min="10" 
+          max="100" 
+          step="10" 
+          value={simState.updateThreshold * 100}
+          onChange={(e) => adjustThreshold(parseInt(e.target.value, 10) / 100)}
+          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+        />
+        <div className="text-xs text-gray-400 mt-1">
+          OS updates when {Math.ceil(simState.physicalSystems.length * simState.updateThreshold)} of {simState.physicalSystems.length} PS nodes are active
+        </div>
       </div>
       
       {/* Controls */}
@@ -490,46 +547,51 @@ const NetworkVisualWithAnimation = () => {
         </div>
         
         <svg width="100%" height="100%" viewBox="0 0 500 500" className="overflow-visible">
-          {/* Connections between nodes - reduce on mobile or in performance mode */}
-          {simState.nodes.map((sourceNode, i) => (
-            simState.nodes.map((targetNode, j) => {
-              // Skip some connections in performance mode to improve rendering
-              if (simState.performanceMode && (i + j) % 2 === 1) return null;
-              
-              if (i < j) { // Only draw connection once between each pair
-                const sourcePos = getNodePosition(i, simState.nodes.length);
-                const targetPos = getNodePosition(j, simState.nodes.length);
-                const isActive = sourceNode.confirming && targetNode.confirming;
-                const connectionIndex = (i * simState.nodes.length) + j - ((i + 1) * (i + 2)) / 2;
-                
-                return (
-                  <line
-                    key={`conn-${i}-${j}`}
-                    ref={el => connectionRefs.current[connectionIndex] = el}
-                    x1={sourcePos.x}
-                    y1={sourcePos.y}
-                    x2={targetPos.x}
-                    y2={targetPos.y}
-                    stroke={isActive ? "rgba(52, 211, 153, 0.8)" : "rgba(255, 255, 255, 0.2)"}
-                    strokeWidth={isActive ? 3 : 1}
-                    className={isActive && !simState.performanceMode ? "connection-flash" : ""}
-                  />
-                );
-              }
-              return null;
-            })
-          ))}
+          {/* Threshold indicator circle */}
+          <circle
+            cx="250"
+            cy="250"
+            r={isMobile ? 155 : 195}
+            fill="none"
+            stroke={simState.thresholdMet ? "rgba(52, 211, 153, 0.3)" : "rgba(255, 255, 255, 0.1)"}
+            strokeWidth="2"
+            strokeDasharray="5,5"
+            className={simState.thresholdMet ? "animate-pulse" : ""}
+          />
           
-          {/* Physical System (center node) with forced animation */}
-          <g ref={physicalSystemRef} className={simState.performanceMode ? "" : "node-float"}>
+          {/* Connections from PS nodes to central OS - reduce on mobile or in performance mode */}
+          {simState.physicalSystems.map((ps, i) => {
+            const pos = getNodePosition(i, simState.physicalSystems.length);
+            const isActive = ps.active;
+            
+            return (
+              <line
+                key={`conn-${i}`}
+                ref={el => connectionRefs.current[i] = el}
+                x1={pos.x}
+                y1={pos.y}
+                x2="250"
+                y2="250"
+                stroke={isActive ? "rgba(52, 211, 153, 0.6)" : "rgba(255, 255, 255, 0.1)"}
+                strokeWidth={isActive ? 2 : 1}
+                strokeDasharray={isActive ? "none" : "5,5"}
+                className={isActive && !simState.performanceMode ? "connection-flash" : ""}
+              />
+            );
+          })}
+          
+          {/* Observer System (center node) with forced animation */}
+          <g ref={observerSystemRef} className={simState.performanceMode ? "" : "node-float"}>
             <circle
               cx="250"
               cy="250"
               r={isMobile ? "30" : "40"}
-              fill={`rgba(255, 255, 255, ${0.2 + simState.physicalValue * 0.5})`}
-              stroke="white"
-              strokeWidth="2"
-              className={simState.performanceMode ? "" : "physical-system node-pulse"}
+              fill={simState.thresholdMet 
+                ? `rgba(52, 211, 153, ${0.5 + simState.observerValue * 0.5})` 
+                : `rgba(59, 130, 246, ${0.3 + simState.observerValue * 0.3})`}
+              stroke={simState.thresholdMet ? "#34D399" : "white"}
+              strokeWidth={simState.thresholdMet ? "3" : "2"}
+              className={`observer-system ${simState.thresholdMet && !simState.performanceMode ? "node-pulse" : ""}`}
             />
             <text
               x="250"
@@ -539,7 +601,7 @@ const NetworkVisualWithAnimation = () => {
               fontSize={isMobile ? "10" : "12"}
               fontWeight="bold"
             >
-              Physical System
+              Observer System
             </text>
             <text
               x="250"
@@ -549,42 +611,31 @@ const NetworkVisualWithAnimation = () => {
               fontSize={isMobile ? "10" : "12"}
               className={simState.performanceMode ? "" : "animate-pulse"}
             >
-              {simState.physicalValue.toFixed(2)}
+              {simState.observerValue.toFixed(2)}
             </text>
           </g>
           
-          {/* Observer System nodes with forced animation */}
-          {simState.nodes.map((node, i) => {
-            const pos = getNodePosition(i, simState.nodes.length);
-            const isConfirming = node.confirming;
+          {/* Physical System nodes with forced animation */}
+          {simState.physicalSystems.map((ps, i) => {
+            const pos = getNodePosition(i, simState.physicalSystems.length);
+            const isActive = ps.active;
             
             // Calculate animation delay based on node index
             const animationDelay = `${i * 0.2}s`;
             
             return (
               <g key={`node-${i}`} ref={el => nodeRefs.current[i] = el}>
-                {/* Connection to Physical System */}
-                <line
-                  x1="250"
-                  y1="250"
-                  x2={pos.x}
-                  y2={pos.y}
-                  stroke={isConfirming ? "rgba(52, 211, 153, 0.6)" : "rgba(255, 255, 255, 0.1)"}
-                  strokeWidth={isConfirming ? 2 : 1}
-                  strokeDasharray={isConfirming ? "none" : "5,5"}
-                  className={isConfirming && !simState.performanceMode ? "connection-flash" : ""}
-                  style={{ animationDelay }}
-                />
-                
-                {/* Observer System node */}
+                {/* Physical System node */}
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={isConfirming ? (isMobile ? 25 : 30) : (isMobile ? 15 : 20)}
-                  fill={getNodeColor(node)}
-                  stroke={isConfirming ? "#34D399" : "white"}
-                  strokeWidth={isConfirming ? 3 : 1}
-                  className={`observer-system ${isConfirming && !simState.performanceMode ? "node-pulse" : (simState.performanceMode ? "" : "node-color-shift")}`}
+                  r={isActive ? (isMobile ? 25 : 30) : (isMobile ? 15 : 20)}
+                  fill={isActive 
+                    ? `rgba(239, 68, 68, ${0.5 + ps.value * 0.5})` 
+                    : `rgba(59, 130, 246, ${0.3 + ps.value * 0.3})`}
+                  stroke={isActive ? "#ef4444" : "white"}
+                  strokeWidth={isActive ? 3 : 1}
+                  className={`physical-system ${isActive && !simState.performanceMode ? "node-pulse" : (simState.performanceMode ? "" : "node-color-shift")}`}
                   style={{ animationDelay }}
                 />
                 <text
@@ -596,7 +647,7 @@ const NetworkVisualWithAnimation = () => {
                   fontSize={isMobile ? "9" : "10"}
                   fontWeight="bold"
                 >
-                  OS{i+1}
+                  PS{i+1}
                 </text>
                 <text
                   x={pos.x}
@@ -607,7 +658,7 @@ const NetworkVisualWithAnimation = () => {
                   className={simState.performanceMode ? "" : "animate-pulse"}
                   style={{ animationDelay }}
                 >
-                  {node.observation.toFixed(2)}
+                  {ps.value.toFixed(2)}
                 </text>
                 
                 {/* Energy indicator with animation - simplified on mobile */}
@@ -625,9 +676,9 @@ const NetworkVisualWithAnimation = () => {
                     <rect
                       x={pos.x - (isMobile ? 12 : 15)}
                       y={pos.y + (isMobile ? 20 : 25)}
-                      width={(isMobile ? 24 : 30) * node.energy}
+                      width={(isMobile ? 24 : 30) * ps.energy}
                       height="4"
-                      fill={node.energy < 0.3 ? "rgb(239, 68, 68)" : "rgb(52, 211, 153)"}
+                      fill={ps.energy < 0.3 ? "rgb(239, 68, 68)" : "rgb(52, 211, 153)"}
                       className="transition-all duration-300"
                     />
                   </>
@@ -636,8 +687,8 @@ const NetworkVisualWithAnimation = () => {
             );
           })}
           
-          {/* Consensus indicator with forced animation */}
-          {simState.consensusReached && (
+          {/* Update indicator with forced animation */}
+          {simState.updateTriggered && (
             <g className={simState.performanceMode ? "" : "consensus-flash"}>
               <rect
                 x={isMobile ? "125" : "150"}
@@ -657,10 +708,23 @@ const NetworkVisualWithAnimation = () => {
                 fontSize={isMobile ? "12" : "14"}
                 fontWeight="bold"
               >
-                Consensus Reached!
+                OS Update Triggered!
               </text>
             </g>
           )}
+          
+          {/* Threshold indicator */}
+          <text
+            x="250"
+            y={isMobile ? "320" : "380"}
+            textAnchor="middle"
+            fill={simState.thresholdMet ? "rgb(52, 211, 153)" : "white"}
+            fontSize={isMobile ? "10" : "12"}
+            className={simState.thresholdMet ? "animate-pulse" : ""}
+          >
+            {simState.physicalSystems.filter(ps => ps.active).length}/{simState.physicalSystems.length} PS Active
+            {simState.thresholdMet ? " - Threshold Met!" : ""}
+          </text>
           
           {/* Visual activity indicators - always animated, reduced on mobile */}
           {!simState.performanceMode && (
@@ -717,13 +781,13 @@ const NetworkVisualWithAnimation = () => {
             <p className="text-lg md:text-2xl animate-pulse">{elapsedTime.toFixed(1)}s</p>
           </div>
           <div>
-            <p className="text-xs md:text-sm text-gray-300">Physical Value</p>
-            <p className="text-lg md:text-2xl animate-pulse">{simState.physicalValue.toFixed(2)}</p>
+            <p className="text-xs md:text-sm text-gray-300">Observer Value</p>
+            <p className="text-lg md:text-2xl animate-pulse">{simState.observerValue.toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-xs md:text-sm text-gray-300">Active Nodes</p>
+            <p className="text-xs md:text-sm text-gray-300">Active PS Nodes</p>
             <p className="text-lg md:text-2xl animate-pulse">
-              {simState.nodes.filter(n => n.confirming).length}/{simState.nodes.length}
+              {simState.physicalSystems.filter(ps => ps.active).length}/{simState.physicalSystems.length}
             </p>
           </div>
         </div>
@@ -733,11 +797,11 @@ const NetworkVisualWithAnimation = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-6 md:mt-10">
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 md:p-4 relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-12 h-12 md:w-16 md:h-16 bg-blue-500/20 rounded-full animate-ping"></div>
-          <h3 className="text-base md:text-lg font-semibold mb-2 relative z-10">Network Confirmation</h3>
+          <h3 className="text-base md:text-lg font-semibold mb-2 relative z-10">Threshold-Based Updates</h3>
           <p className="text-gray-300 text-xs md:text-sm relative z-10">
-            Multiple Observer Systems (OS) each monitor the Physical System (PS) with varying 
-            levels of accuracy. When enough nodes agree on an observation, consensus is reached
-            and a global update occurs.
+            The Observer System (OS) only updates when a sufficient number of Physical Systems (PS) 
+            become active. This threshold mechanism prevents premature or unnecessary updates, 
+            creating a more stable and energy-efficient system.
           </p>
         </div>
         
@@ -745,9 +809,9 @@ const NetworkVisualWithAnimation = () => {
           <div className="absolute -left-4 -top-4 w-12 h-12 md:w-16 md:h-16 bg-green-500/20 rounded-full animate-ping" style={{ animationDelay: "0.5s" }}></div>
           <h3 className="text-base md:text-lg font-semibold mb-2 relative z-10">Energy Constraints</h3>
           <p className="text-gray-300 text-xs md:text-sm relative z-10">
-            Each node has limited energy for updates. Consensus updates are more efficient than
-            individual updates, demonstrating how distributed consciousness can be more energy-efficient
-            than isolated perception.
+            Each PS node has limited energy for signaling. The threshold mechanism ensures the OS
+            only updates when enough evidence has accumulated, preventing wasteful updates based on
+            noisy or insufficient data from individual PS nodes.
           </p>
         </div>
         
@@ -755,9 +819,9 @@ const NetworkVisualWithAnimation = () => {
           <div className="absolute -right-4 -bottom-4 w-12 h-12 md:w-16 md:h-16 bg-purple-500/20 rounded-full animate-ping" style={{ animationDelay: "1s" }}></div>
           <h3 className="text-base md:text-lg font-semibold mb-2 relative z-10">Emergent Consciousness</h3>
           <p className="text-gray-300 text-xs md:text-sm relative z-10">
-            The collective behavior of the network demonstrates how consciousness can emerge from
-            distributed confirmation. No single node has complete information, but together they
-            create a more accurate model of reality.
+            This model demonstrates how a central Observer System can integrate information from multiple
+            Physical Systems, updating only when sufficient evidence accumulates. This mirrors how
+            consciousness might emerge as a threshold-based integration of distributed neural activity.
           </p>
         </div>
       </div>
@@ -773,11 +837,11 @@ const NetworkVisualWithAnimation = () => {
 };
 
 // Helper function to get node color based on state
-function getNodeColor(node) {
-  if (node.confirming) {
-    return `rgba(52, 211, 153, ${0.5 + node.energy * 0.5})`;
+function getNodeColor(ps) {
+  if (ps.active) {
+    return `rgba(239, 68, 68, ${0.5 + ps.energy * 0.5})`;
   } else {
-    return `rgba(59, 130, 246, ${0.5 + node.energy * 0.5})`;
+    return `rgba(59, 130, 246, ${0.5 + ps.energy * 0.5})`;
   }
 }
 

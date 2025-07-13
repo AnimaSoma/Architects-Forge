@@ -145,6 +145,15 @@ export default function ISRMFoundationLanding() {
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         {/* Starfield background */}
         <Starfield />
+        {/* Title background video */}
+        <video
+          className="absolute inset-0 w-full h-full object-cover z-0 opacity-40 pointer-events-none"
+          src="/forgeIntro.mp4"
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
         
         {/* Content */}
         <motion.div 
