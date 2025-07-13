@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from "react";
 
 import Lenis from "lenis";
@@ -1134,8 +1135,18 @@ export default function ISRMFoundationLanding() {
 
           </p>
         </motion.div>
+        <motion.a
+          href="https://isrm-framework.org"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md shadow-md transition"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          ISRM-Framework.Org
+        </motion.a>
       </section>
-      {/* ───────────────── Tech Cards ───────────────── */}
+      
       <section className="bg-white text-black py-24 px-6 md:px-16">
         <motion.div
           initial="hidden"
@@ -1203,16 +1214,15 @@ export default function ISRMFoundationLanding() {
             { title: "Constraint forces choices", body: "Without limits — of energy, time, attention, or survival — there would be no need to choose or regulate anything. If a system could do everything at once with no cost, it wouldn't need consciousness. Consciousness exists because the system must decide what to do next and what to ignore." },
             { title: "Prediction error under constraint demands modeling", body: "When the world becomes unpredictable and resources are limited, the system must: Prioritize attention, Reduce uncertainty, Choose efficient actions. This requires an Observer System (OS) to model the world and itself, and consciousness emerges when that modeling becomes active under pressure." },
             { title: "Updates cost energy, so it only happens when needed", body: "The brain (or any adaptive system) cannot constantly update everything. It's energentically expensive. The system stays unconscious until the cost of staying the same becomes higher than the cost of updating. This trade-off defines consciousness: It is the act of re-aligning the system under constraint to preserve coherence." },
-            
-
           ].map((item) => (
             <motion.div
               key={item.title}
               variants={{ hidden: { opacity: 0, y: 30 }, show: { opacity: 1, y: 0 } }}
+              className="p-8 border border-gray-200 rounded-lg shadow-lg backdrop-blur-sm bg-white/60"
+              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               transition={{ duration: 0.3 }}
               viewport={{ once: true }}
-              className="p-8 border border-gray-200 rounded-lg shadow-lg backdrop-blur-sm bg-white/60"
             >
               <h3 className="text-2xl font-semibold mb-3">{item.title}</h3>
               <p className="text-gray-700 leading-relaxed">{item.body}</p>
@@ -1220,22 +1230,23 @@ export default function ISRMFoundationLanding() {
           ))}
         </motion.div>
       </section>
-     
-      {/* ───────────────── Tech Cards ───────────────── */}
-      {/* ───────────────── About ───────────────── */}
+
+      <section className="bg-white text-black py-8 px-6 md:px-16">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-2xl md:text-4xl font-mono text-black/30 hover:text-black transition duration-300 cursor-help group">
+            <InlineMath math="U(t) = \sum (PE_i \cdot S_i) - E_c" />
+            <div className="mt-2 hidden group-hover:block text-sm bg-white/90 text-black border border-gray-300 rounded p-3 shadow-xl">
+              <p><strong>U(t)</strong>: Urgency of conscious update at time <em>t</em></p>
+              <p><strong>PE<sub>i</sub></strong>: Prediction error for input <em>i</em></p>
+              <p><strong>S<sub>i</sub></strong>: Salience of input <em>i</em></p>
+              <p><strong>E<sub>c</sub></strong>: Energy cost of updating the model</p>
+              <p className="mt-1 italic">When U(t) rises above threshold, consciousness activates.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="bg-white text-black py-32 px-6 md:px-16 relative overflow-hidden">
-        <div className="absolute top-60 right-20 max-w-lg text-left z-20">
-  <div className="text-2xl md:text-4xl font-mono text-black/30 hover:text-black transition duration-300 cursor-help group">
-    <InlineMath math="U(t) = \sum (PE_i \cdot S_i) - E_c" />
-    <div className="mt-2 hidden group-hover:block text-sm bg-white/90 text-black border border-gray-300 rounded p-3 shadow-xl">
-      <p><strong>U(t)</strong>: Urgency of conscious update at time <em>t</em></p>
-      <p><strong>PE<sub>i</sub></strong>: Prediction error for input <em>i</em></p>
-      <p><strong>S<sub>i</sub></strong>: Salience of input <em>i</em></p>
-      <p><strong>E<sub>c</sub></strong>: Energy cost of updating the model</p>
-      <p className="mt-1 italic">When U(t) rises above threshold, consciousness activates.</p>
-    </div>
-  </div>
-</div>
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -1246,10 +1257,8 @@ export default function ISRMFoundationLanding() {
           <h2 className="text-4xl md:text-5xl font-semibold mb-6">Can Consciousness Be Measured?</h2>
           <p className="text-lg md:text-xl leading-relaxed">
             In the ISRM framework — YES!
-Consciousness is not magic, nor is it a binary switch. It's a dynamic process that arises when a system must regulate itself under constraint. To calculate it, we track how often and how intensely the system must update its model in response to prediction error, salience, and energy cost.
-Below, we break it down into three core components of the ISRM calculation.
-
-
+            Consciousness is not magic, nor is it a binary switch. It's a dynamic process that arises when a system must regulate itself under constraint. To calculate it, we track how often and how intensely the system must update its model in response to prediction error, salience, and energy cost.
+            Below, we break it down into three core components of the ISRM calculation.
           </p>
         </motion.div>
       </section>
@@ -1481,19 +1490,9 @@ Below, we break it down into three core components of the ISRM calculation.
       </section>
 
       {/* ───────────────── Call-to-Action ───────────────── */}
-      <section className="relative py-32 bg-gradient-to-tr from-indigo-700 via-purple-700 to-pink-700 text-center">
-        <motion.h2
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8 }}
-          viewport={{ once: true }}
-          className="text-4xl md:text-3xl font-bold mb-6"
-        >
-          Learn the framework of the Interactionist Self-Regulation Model, at ISRM-Framework.Org
-        </motion.h2>
-        <motion.a
-  href="https://isrm-framework.org"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md shadow-md transition"
-  whileHover={{ scale: 1.05 }}
+
+      {/* ──────────────── End of content sections ──────────────── */}
+    </div>
+  );
+}
+      
