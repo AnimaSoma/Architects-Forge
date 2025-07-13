@@ -38,16 +38,27 @@ const SimpleUSPVisualization = () => {
     energyDrainEffect: false, // Visual effect for energy drain
     stuckCounter: 0,          // Counter for detecting stuck energy
     lastForcedDrop: 0,        // Time of last forced energy drop
-    energyStable: false       // Flag for stable energy (not fluctuating)
+    energyStable: false,      // Flag for stable energy (not fluctuating)
+    forcedEnergyActive: false // Flag for when forced energy system is active
   });
 
   // Animation frame reference
   const animationRef = useRef(null);
   // Hold latest running flag to avoid stale closure
   const runningRef = useRef(state.running);
+  // Reference for the forced energy timer
+  const forcedEnergyTimerRef = useRef(null);
+  // Cycle phase for energy pattern
+  const energyCycleRef = useRef({
+    phase: 'full', // 'full', 'draining', 'recovering'
+    startTime: Date.now(),
+    targetEnergy: 100
+  });
   
   // Show update event notification
   const [showUpdateEvent, setShowUpdateEvent] = useState(false);
+  // Show forced energy manipulation notification
+  const [showForcedEnergyNotice, setShowForcedEnergyNotice] = useState(false);
   
   // State change indicator
   const [stateChangeIndicator, setStateChangeIndicator] = useState({
@@ -72,7 +83,7 @@ const SimpleUSPVisualization = () => {
         lastEnergyBudget,
         stuckCounter,
         lastForcedDrop
-      } = state;
+      } = prev;
       
       // Fixed time step - slowed down by 50%
       const dt = 0.05; // Reduced from 0.1 for slower simulation
@@ -96,8 +107,8 @@ const SimpleUSPVisualization = () => {
       
       // Calculate new observer system
       let newObserverSystem = observerSystem;
-      let updateCount = state.updateCount;
-      let lastUpdateTime = state.lastUpdateTime;
+      let updateCount = prev.updateCount;
+      let lastUpdateTime = prev.lastUpdateTime;
       let energyDrainEffect = false;
       let newStuckCounter = stuckCounter;
       let forcedDrop = false;
@@ -293,10 +304,19 @@ const SimpleUSPVisualization = () => {
       energyDrainEffect: false,
       stuckCounter: 0,
       lastForcedDrop: 0,
-      energyStable: false
+      energyStable: false,
+      forcedEnergyActive: false
     });
     setShowUpdateEvent(false);
+    setShowForcedEnergyNotice(false);
     setStateChangeIndicator({ active: false, phase: 0 });
+    
+    // Reset energy cycle
+    energyCycleRef.current = {
+      phase: 'full',
+      startTime: Date.now(),
+      targetEnergy: 100
+    };
   }, []);
   
   // Update parameter
@@ -331,6 +351,10 @@ const SimpleUSPVisualization = () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      
+      if (forcedEnergyTimerRef.current) {
+        clearInterval(forcedEnergyTimerRef.current);
+      }
     };
   }, []);
 
@@ -363,6 +387,90 @@ const SimpleUSPVisualization = () => {
     }
   }, [state.running, state.energyStable]);
 
+  // DIRECT ENERGY MANIPULATION SYSTEM
+  // This system completely overrides the normal energy calculation
+  // to ensure energy fluctuates in a predictable pattern regardless of other factors
+  useEffect(() => {
+    // Function to directly force energy to a specific value
+    const forceEnergyValue = () => {
+      const now = Date.now();
+      const cycle = energyCycleRef.current;
+      const elapsedTime = (now - cycle.startTime) / 1000; // in seconds
+      let newEnergy = state.energyBudget;
+      let newPhase = cycle.phase;
+      let newTargetEnergy = cycle.targetEnergy;
+      let phaseChanged = false;
+      
+      // Calculate energy based on current phase
+      if (cycle.phase === 'full' && elapsedTime > 3) {
+        // Start draining after 3 seconds at full
+        newPhase = 'draining';
+        newTargetEnergy = 30;
+        phaseChanged = true;
+        console.log("ENERGY CYCLE: Starting drain phase, target: 30%");
+      } else if (cycle.phase === 'draining') {
+        // Drain to 30% over 10 seconds
+        const drainProgress = Math.min(1, elapsedTime / 10);
+        newEnergy = 100 - (70 * drainProgress);
+        
+        // If we've reached the target, switch to recovery
+        if (newEnergy <= 31 || elapsedTime > 10) {
+          newPhase = 'recovering';
+          newTargetEnergy = 80;
+          phaseChanged = true;
+          console.log("ENERGY CYCLE: Starting recovery phase, target: 80%");
+        }
+      } else if (cycle.phase === 'recovering') {
+        // Recover to 80% over 15 seconds
+        const recoveryProgress = Math.min(1, elapsedTime / 15);
+        newEnergy = 30 + (50 * recoveryProgress);
+        
+        // If we've reached the target, switch back to full
+        if (newEnergy >= 79 || elapsedTime > 15) {
+          newPhase = 'full';
+          newTargetEnergy = 100;
+          phaseChanged = true;
+          console.log("ENERGY CYCLE: Returning to full phase, target: 100%");
+        }
+      }
+      
+      // Update state with the new energy value
+      setState(prev => ({
+        ...prev,
+        energyBudget: newEnergy,
+        lastEnergyBudget: prev.energyBudget,
+        forcedEnergyActive: true,
+        energyDrainEffect: phaseChanged // Visual effect on phase change
+      }));
+      
+      // Show notification when phase changes
+      if (phaseChanged) {
+        setShowForcedEnergyNotice(true);
+        setTimeout(() => setShowForcedEnergyNotice(false), 3000);
+        
+        // Reset the timer for the new phase
+        energyCycleRef.current = {
+          phase: newPhase,
+          startTime: now,
+          targetEnergy: newTargetEnergy
+        };
+      }
+      
+      // Log energy changes for debugging
+      console.log(`ENERGY SYSTEM: ${newPhase} phase, current: ${newEnergy.toFixed(2)}%, target: ${newTargetEnergy}%`);
+    };
+    
+    // Start the forced energy timer
+    forcedEnergyTimerRef.current = setInterval(forceEnergyValue, 1000);
+    
+    // Clean up the timer when component unmounts
+    return () => {
+      if (forcedEnergyTimerRef.current) {
+        clearInterval(forcedEnergyTimerRef.current);
+      }
+    };
+  }, []); // Empty dependency array ensures this only runs once on mount
+
   // Enhanced bar visualization component with special effects for energy
   const BarVisualization = ({ value, maxValue, label, color, isEnergy = false }) => {
     // Special styling for energy when it's low or draining
@@ -388,6 +496,15 @@ const SimpleUSPVisualization = () => {
       if (state.stuckCounter > 10) {
         pulseEffect = 'animate-pulse';
       }
+      
+      // Add forced energy indicator
+      if (state.forcedEnergyActive) {
+        if (energyCycleRef.current.phase === 'draining') {
+          barColor = 'bg-purple-600';
+        } else if (energyCycleRef.current.phase === 'recovering') {
+          barColor = 'bg-blue-400';
+        }
+      }
     }
     
     return (
@@ -412,6 +529,11 @@ const SimpleUSPVisualization = () => {
         {isEnergy && state.stuckCounter > 15 && (
           <div className="text-xs text-yellow-400 mt-1 animate-pulse">
             Energy stuck - forcing fluctuation...
+          </div>
+        )}
+        {isEnergy && state.forcedEnergyActive && (
+          <div className="text-xs text-purple-300 mt-1">
+            Forced Energy Cycle: <strong>{energyCycleRef.current.phase}</strong> → Target: {energyCycleRef.current.targetEnergy}%
           </div>
         )}
       </div>
@@ -477,6 +599,28 @@ const SimpleUSPVisualization = () => {
     return (
       <div className="absolute top-2 right-2 bg-yellow-600/70 px-2 py-1 rounded text-xs animate-pulse">
         Energy Stabilized - Forcing Fluctuation
+      </div>
+    );
+  };
+
+  // Forced energy cycle notification
+  const ForcedEnergyCycleIndicator = () => {
+    if (!state.forcedEnergyActive) return null;
+    
+    let bgColor = "bg-purple-800/70";
+    let message = "ENERGY CYCLE ACTIVE";
+    
+    if (energyCycleRef.current.phase === 'draining') {
+      bgColor = "bg-red-800/70";
+      message = "FORCED ENERGY DRAIN";
+    } else if (energyCycleRef.current.phase === 'recovering') {
+      bgColor = "bg-blue-800/70";
+      message = "FORCED ENERGY RECOVERY";
+    }
+    
+    return (
+      <div className={`absolute top-2 left-2 ${bgColor} px-2 py-1 rounded text-xs animate-pulse`}>
+        {message}
       </div>
     );
   };
@@ -665,6 +809,16 @@ const SimpleUSPVisualization = () => {
         </div>
       )}
       
+      {/* Forced Energy Cycle Notification */}
+      {showForcedEnergyNotice && (
+        <div className="bg-purple-600/30 border border-purple-500 p-3 rounded-md mb-8 text-center animate-pulse">
+          <strong>Energy Cycle Phase Change!</strong> Entering <span className="font-bold">{energyCycleRef.current.phase}</span> phase.
+          <div className="text-blue-300 text-sm mt-1">
+            Target energy level: {energyCycleRef.current.targetEnergy}%
+          </div>
+        </div>
+      )}
+      
       {/* Visualizations */}
       <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8 relative">
         <h3 className="text-xl font-semibold mb-4">Current Values</h3>
@@ -677,6 +831,9 @@ const SimpleUSPVisualization = () => {
         
         {/* Forced Energy Drop Indicator */}
         <ForcedEnergyDropIndicator />
+        
+        {/* Forced Energy Cycle Indicator */}
+        <ForcedEnergyCycleIndicator />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">
@@ -814,6 +971,15 @@ const SimpleUSPVisualization = () => {
                   <p className="text-blue-300 text-sm">Energy fluctuating: {Math.abs(state.energyBudget - state.lastEnergyBudget).toFixed(1)} units</p>
                 </div>
               )}
+              
+              {/* Forced energy cycle message */}
+              {state.forcedEnergyActive && (
+                <div className="mt-4 p-2 bg-purple-900/50 rounded text-center">
+                  <p className="text-purple-300 text-sm">
+                    <strong>FORCED ENERGY CYCLE:</strong> {energyCycleRef.current.phase} phase
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -873,6 +1039,33 @@ const SimpleUSPVisualization = () => {
             <div className="w-4 h-4 animate-pulse mr-2 bg-yellow-500"></div>
             <span className="text-sm">Forced Energy Drop</span>
           </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 animate-pulse mr-2 bg-purple-600"></div>
+            <span className="text-sm">Forced Energy Cycle</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Debugging Information */}
+      <div className="mt-8 bg-black/50 p-4 rounded-lg border border-purple-500">
+        <h3 className="text-lg font-semibold mb-2 text-purple-300">Energy Cycle Debug Info</h3>
+        <div className="grid grid-cols-3 gap-4 text-sm">
+          <div>
+            <p className="text-gray-400">Current Phase:</p>
+            <p className="text-white font-mono">{energyCycleRef.current.phase}</p>
+          </div>
+          <div>
+            <p className="text-gray-400">Target Energy:</p>
+            <p className="text-white font-mono">{energyCycleRef.current.targetEnergy}%</p>
+          </div>
+          <div>
+            <p className="text-gray-400">Phase Duration:</p>
+            <p className="text-white font-mono">{((Date.now() - energyCycleRef.current.startTime) / 1000).toFixed(1)}s</p>
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-gray-400">
+          <p>Energy cycles between 100% → 30% → 80% → repeat, regardless of simulation parameters.</p>
+          <p>This forced cycle ensures energy fluctuates visibly for demonstration purposes.</p>
         </div>
       </div>
     </div>
