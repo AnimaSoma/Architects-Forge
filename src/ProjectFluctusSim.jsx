@@ -364,7 +364,7 @@ export default function ProjectFluctusSim({ style }) {
   return (
     <div 
       ref={containerRef}
-      className="relative w-full h-full min-h-[400px]" 
+      className="relative w-full h-[50%] min-h-[400px]" 
       style={{ backgroundColor: "black", overflow: "hidden", ...style }}
     >
       {/* ---------------- Temperature Slider Overlay ---------------- */}

@@ -549,7 +549,11 @@ const SimpleUSPVisualization = () => {
     if (!state.energyDrainEffect) return null;
     
     return (
-      <div className="absolute inset-0 bg-red-500/20 animate-pulse rounded-lg z-5 pointer-events-none">
+      <div
+        className="absolute inset-0 bg-red-500/20 animate-pulse rounded-lg z-5 pointer-events-none"
+        /* Prevents the pulse effect from triggering re-layouts */
+        style={{ willChange: 'opacity', contain: 'paint' }}
+      >
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-500 font-bold text-2xl">
           ENERGY DRAIN
         </div>
@@ -652,7 +656,10 @@ const SimpleUSPVisualization = () => {
   };
 
   return (
-    <div className="bg-gradient-to-r from-blue-900 to-purple-900 text-white p-6 rounded-lg shadow-xl">
+    <div
+      className="bg-gradient-to-r from-blue-900 to-purple-900 text-white p-6 rounded-lg shadow-xl overflow-hidden isolation-auto"
+      style={{ contain: 'content', transform: 'translateZ(0)', willChange: 'transform' }}
+    >
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold mb-4">Update Signal Potential</h2>
         <div className="mb-6 text-xl font-mono bg-black/30 p-4 rounded-lg inline-block">
