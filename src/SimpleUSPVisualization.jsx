@@ -273,7 +273,12 @@ const SimpleUSPVisualization = () => {
   
   // Toggle simulation running state
   const toggleSimulation = useCallback(() => {
-    setState(prev => ({ ...prev, running: !prev.running }));
+    setState(prev => ({
+      ...prev,
+      running: !prev.running,
+      // ensure forced-energy visuals stop while paused
+      forcedEnergyActive: prev.running ? false : prev.forcedEnergyActive
+    }));
   }, []);
   
   // Reset simulation
@@ -388,9 +393,17 @@ const SimpleUSPVisualization = () => {
   }, [state.running, state.energyStable]);
 
   // DIRECT ENERGY MANIPULATION SYSTEM
-  // This system completely overrides the normal energy calculation
-  // to ensure energy fluctuates in a predictable pattern regardless of other factors
+  // Runs only while the simulation is active
   useEffect(() => {
+    // if not running make sure timer is cleared
+    if (!state.running) {
+      if (forcedEnergyTimerRef.current) {
+        clearInterval(forcedEnergyTimerRef.current);
+        forcedEnergyTimerRef.current = null;
+      }
+      return;
+    }
+
     // Function to directly force energy to a specific value
     const forceEnergyValue = () => {
       const now = Date.now();
@@ -467,9 +480,10 @@ const SimpleUSPVisualization = () => {
     return () => {
       if (forcedEnergyTimerRef.current) {
         clearInterval(forcedEnergyTimerRef.current);
+        forcedEnergyTimerRef.current = null;
       }
     };
-  }, []); // Empty dependency array ensures this only runs once on mount
+  }, [state.running]); // depend on running state so it pauses correctly
 
   // Enhanced bar visualization component with special effects for energy
   const BarVisualization = ({ value, maxValue, label, color, isEnergy = false }) => {
