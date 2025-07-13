@@ -10,83 +10,87 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // Inline CSS with keyframe animations
 const AnimationStyles = () => (
-  <style jsx>{`
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 0.7; }
-      50% { transform: scale(1.2); opacity: 1; }
-      100% { transform: scale(1); opacity: 0.7; }
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    @keyframes float {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-      100% { transform: translateY(0px); }
-    }
-    
-    @keyframes colorShift {
-      0% { fill: rgba(59, 130, 246, 0.7); }
-      50% { fill: rgba(239, 68, 68, 0.7); }
-      100% { fill: rgba(59, 130, 246, 0.7); }
-    }
-    
-    @keyframes flashConnection {
-      0% { stroke-width: 1; stroke-opacity: 0.2; }
-      50% { stroke-width: 4; stroke-opacity: 0.8; }
-      100% { stroke-width: 1; stroke-opacity: 0.2; }
-    }
-    
-    .node-pulse {
-      animation: pulse 4s infinite;
-    }
-    
-    .node-float {
-      animation: float 6s infinite ease-in-out;
-    }
-    
-    .node-color-shift {
-      animation: colorShift 10s infinite;
-    }
-    
-    .connection-flash {
-      animation: flashConnection 6s infinite;
-    }
-    
-    .spin-slow {
-      animation: spin 40s infinite linear;
-    }
-    
-    .physical-system {
-      transition: all 0.5s;
-    }
-    
-    .observer-system {
-      transition: all 0.3s;
-    }
-    
-    .consensus-flash {
-      animation: pulse 1s infinite;
-    }
-
-    /* Reduced animations for mobile devices */
-    @media (max-width: 768px) {
-      .spin-slow {
-        animation-duration: 60s; /* Even slower spin on mobile */
+  <style
+    dangerouslySetInnerHTML={{
+      __html: `
+      @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.7; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.7; }
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      @keyframes float {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+        100% { transform: translateY(0px); }
+      }
+      
+      @keyframes colorShift {
+        0% { fill: rgba(59, 130, 246, 0.7); }
+        50% { fill: rgba(239, 68, 68, 0.7); }
+        100% { fill: rgba(59, 130, 246, 0.7); }
+      }
+      
+      @keyframes flashConnection {
+        0% { stroke-width: 1; stroke-opacity: 0.2; }
+        50% { stroke-width: 4; stroke-opacity: 0.8; }
+        100% { stroke-width: 1; stroke-opacity: 0.2; }
+      }
+      
+      .node-pulse {
+        animation: pulse 4s infinite;
       }
       
       .node-float {
-        animation-duration: 8s; /* Slower float on mobile */
+        animation: float 6s infinite ease-in-out;
+      }
+      
+      .node-color-shift {
+        animation: colorShift 10s infinite;
       }
       
       .connection-flash {
-        animation-duration: 8s; /* Slower flash on mobile */
+        animation: flashConnection 6s infinite;
       }
-    }
-  `}</style>
+      
+      .spin-slow {
+        animation: spin 40s infinite linear;
+      }
+      
+      .physical-system {
+        transition: all 0.5s;
+      }
+      
+      .observer-system {
+        transition: all 0.3s;
+      }
+      
+      .consensus-flash {
+        animation: pulse 1s infinite;
+      }
+
+      /* Reduced animations for mobile devices */
+      @media (max-width: 768px) {
+        .spin-slow {
+          animation-duration: 60s; /* Even slower spin on mobile */
+        }
+        
+        .node-float {
+          animation-duration: 8s; /* Slower float on mobile */
+        }
+        
+        .connection-flash {
+          animation-duration: 8s; /* Slower flash on mobile */
+        }
+      }
+      `,
+    }}
+  />
 );
 
 const NetworkVisualWithAnimation = () => {

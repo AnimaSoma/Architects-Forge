@@ -394,30 +394,35 @@ export default function ProjectFluctusSim({ style }) {
             margin: '10px 0',
           }}
         />
-        <style jsx>{`
-          /* Larger thumb for touch devices */
-          input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: white;
-            cursor: pointer;
-            border: 2px solid rgba(255,255,255,0.5);
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
-          }
-          
-          input[type=range]::-moz-range-thumb {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: white;
-            cursor: pointer;
-            border: 2px solid rgba(255,255,255,0.5);
-            box-shadow: 0 0 5px rgba(0,0,0,0.5);
-          }
-        `}</style>
+        <style
+          /* eslint-disable react/no-danger */
+          dangerouslySetInnerHTML={{
+            __html: `
+            /* Larger thumb for touch devices */
+            input[type=range]::-webkit-slider-thumb {
+              -webkit-appearance: none;
+              appearance: none;
+              width: 24px;
+              height: 24px;
+              border-radius: 50%;
+              background: white;
+              cursor: pointer;
+              border: 2px solid rgba(255,255,255,0.5);
+              box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            }
+            
+            input[type=range]::-moz-range-thumb {
+              width: 24px;
+              height: 24px;
+              border-radius: 50%;
+              background: white;
+              cursor: pointer;
+              border: 2px solid rgba(255,255,255,0.5);
+              box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            }
+          `,
+          }}
+        />
         <div className="w-full flex justify-between text-[10px] md:text-xs mt-1">
           <span>Freezing</span>
           <span>Liquid</span>
