@@ -1,8 +1,8 @@
 {
-  "name": "architects-forge-prototype",
+  "name": "isrm-foundation",
   "version": "1.0.0",
   "private": true,
-  "description": "Prototype front-end for Architects-Forge (react, vite, tailwind, framer-motion, lenis)",
+  "description": "Front-end for ISRM-Foundation.Org (React, Vite, Tailwind, Framer-Motion, Lenis)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

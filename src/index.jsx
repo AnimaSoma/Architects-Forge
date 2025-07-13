@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import ArchitectsForgeLanding from './ArchitectsForgeLanding.jsx';
+import ISRMFoundationLanding from './ISRMFoundationLanding.jsx';
 import CustomCursor from './CustomCursor.jsx';
 import './index.css';
 
@@ -12,7 +12,7 @@ root.render(
   <React.StrictMode>
     <>
       <CustomCursor />
-      <ArchitectsForgeLanding />
+      <ISRMFoundationLanding />
     </>
   </React.StrictMode>
 );
