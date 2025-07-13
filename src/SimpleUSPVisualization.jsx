@@ -41,21 +41,27 @@ const SimpleUSPVisualization = () => {
   
   // Show update event notification
   const [showUpdateEvent, setShowUpdateEvent] = useState(false);
+  
+  // State change indicator
+  const [stateChangeIndicator, setStateChangeIndicator] = useState({
+    active: false,
+    phase: 0 // 0: inactive, 1: expanding, 2: color change, 3: contracting
+  });
 
   // Calculate next state based on current state
   const calculateNextState = useCallback(() => {
     try {
       const { params, physicalSystem, observerSystem, uIntegral, time } = state;
       
-      // Fixed time step
-      const dt = 0.1;
+      // Fixed time step - slowed down by 50%
+      const dt = 0.05; // Reduced from 0.1 for slower simulation
       
       // Calculate prediction error
       const error = Math.abs(physicalSystem - observerSystem);
       const predictionError = params.delta * error;
       
       // Calculate salience
-      const errorVariance = error * 0.1 * (1 + Math.random());
+      const errorVariance = error * 0.1 * (1 + Math.random() * 0.5); // Reduced randomness
       const salience = params.alpha * error + params.beta * errorVariance;
       
       // Calculate energy budget
@@ -68,8 +74,8 @@ const SimpleUSPVisualization = () => {
       // Calculate update signal
       const updateSignal = salience * energyBudget * predictionError;
       
-      // New physical system state (simplified oscillation)
-      const newPhysicalSystem = 0.5 * Math.sin(0.1 * (time + dt)) + 0.1 * (Math.random() - 0.5);
+      // New physical system state (smoother oscillation with less randomness)
+      const newPhysicalSystem = 0.5 * Math.sin(0.05 * (time + dt)) + 0.05 * (Math.random() - 0.5);
       
       // Determine if update should occur
       const shouldUpdate = updateSignal > params.updateThreshold;
@@ -80,13 +86,33 @@ const SimpleUSPVisualization = () => {
       let lastUpdateTime = state.lastUpdateTime;
       
       if (shouldUpdate) {
-        newObserverSystem = observerSystem + params.updateRate * (newPhysicalSystem - observerSystem);
+        // Smoother transition to new state
+        newObserverSystem = observerSystem + params.updateRate * (newPhysicalSystem - observerSystem) * 0.7;
         updateCount += 1;
         lastUpdateTime = time;
         
-        // Show update notification
+        // Show update notification for longer (3 seconds instead of 2)
         setShowUpdateEvent(true);
-        setTimeout(() => setShowUpdateEvent(false), 2000);
+        setTimeout(() => setShowUpdateEvent(false), 3000);
+        
+        // Activate state change indicator
+        setStateChangeIndicator({
+          active: true,
+          phase: 1
+        });
+        
+        // State change animation sequence
+        setTimeout(() => {
+          setStateChangeIndicator({ active: true, phase: 2 });
+          
+          setTimeout(() => {
+            setStateChangeIndicator({ active: true, phase: 3 });
+            
+            setTimeout(() => {
+              setStateChangeIndicator({ active: false, phase: 0 });
+            }, 1000);
+          }, 1000);
+        }, 1000);
       }
       
       return {
@@ -116,7 +142,10 @@ const SimpleUSPVisualization = () => {
     setState(calculateNextState());
     
     if (state.running) {
-      animationRef.current = requestAnimationFrame(animationStep);
+      // Slower animation frame rate for smoother visualization
+      setTimeout(() => {
+        animationRef.current = requestAnimationFrame(animationStep);
+      }, 50); // Added delay to slow down animation
     }
   }, [calculateNextState, state.running]);
   
@@ -151,6 +180,7 @@ const SimpleUSPVisualization = () => {
       lastUpdateTime: 0
     });
     setShowUpdateEvent(false);
+    setStateChangeIndicator({ active: false, phase: 0 });
   }, []);
   
   // Update parameter
@@ -195,12 +225,51 @@ const SimpleUSPVisualization = () => {
       </div>
       <div className="w-full bg-gray-700 rounded-full h-4">
         <div 
-          className={`h-4 rounded-full ${color}`} 
+          className={`h-4 rounded-full ${color} transition-all duration-700`} 
           style={{ width: `${Math.min(100, (value / maxValue) * 100)}%` }}
         />
       </div>
     </div>
   );
+
+  // State change indicator component
+  const StateChangeIndicator = () => {
+    if (!stateChangeIndicator.active) return null;
+    
+    let size = "60px";
+    let color = "bg-blue-500";
+    let transform = "scale(1)";
+    
+    if (stateChangeIndicator.phase === 1) {
+      size = "80px";
+      color = "bg-blue-500";
+      transform = "scale(1.2)";
+    } else if (stateChangeIndicator.phase === 2) {
+      size = "80px";
+      color = "bg-green-500";
+      transform = "scale(1.2)";
+    } else if (stateChangeIndicator.phase === 3) {
+      size = "60px";
+      color = "bg-green-500";
+      transform = "scale(1)";
+    }
+    
+    return (
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
+        <div 
+          className={`rounded-full ${color} flex items-center justify-center transition-all duration-1000 ease-in-out`}
+          style={{ 
+            width: size, 
+            height: size, 
+            transform,
+            boxShadow: '0 0 20px rgba(255, 255, 255, 0.6)'
+          }}
+        >
+          <div className="text-white font-bold">OS</div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-gradient-to-r from-blue-900 to-purple-900 text-white p-6 rounded-lg shadow-xl">
@@ -363,14 +432,14 @@ const SimpleUSPVisualization = () => {
       <div className="flex justify-center space-x-4 mb-8">
         <button
           onClick={toggleSimulation}
-          className="py-2 px-6 bg-blue-600 hover:bg-blue-700 rounded-md shadow text-lg"
+          className="py-2 px-6 bg-blue-600 hover:bg-blue-700 rounded-md shadow text-lg transition-colors duration-300"
         >
           {state.running ? 'Pause Simulation' : 'Start Simulation'}
         </button>
         
         <button
           onClick={resetSimulation}
-          className="py-2 px-6 bg-gray-600 hover:bg-gray-700 rounded-md shadow text-lg"
+          className="py-2 px-6 bg-gray-600 hover:bg-gray-700 rounded-md shadow text-lg transition-colors duration-300"
         >
           Reset
         </button>
@@ -378,14 +447,17 @@ const SimpleUSPVisualization = () => {
       
       {/* Update Event Notification */}
       {showUpdateEvent && (
-        <div className="bg-green-600/30 border border-green-500 p-3 rounded-md mb-8 text-center">
+        <div className="bg-green-600/30 border border-green-500 p-3 rounded-md mb-8 text-center animate-pulse">
           <strong>Update Event Occurred!</strong> The Observer System has updated its internal model.
         </div>
       )}
       
       {/* Visualizations */}
-      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8">
+      <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mb-8 relative">
         <h3 className="text-xl font-semibold mb-4">Current Values</h3>
+        
+        {/* State Change Indicator */}
+        <StateChangeIndicator />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">
@@ -422,14 +494,14 @@ const SimpleUSPVisualization = () => {
             <div className="bg-black/30 p-4 rounded-lg mb-6">
               <h4 className="text-lg font-semibold mb-2">System State</h4>
               
-              <div className="mb-4">
+              <div className="mb-6">
                 <div className="flex justify-between mb-1">
                   <span>Physical System:</span>
                   <span>{state.physicalSystem.toFixed(2)}</span>
                 </div>
                 <div className="w-full bg-gray-700 h-6 rounded-lg overflow-hidden">
                   <div 
-                    className="h-full bg-blue-500" 
+                    className="h-full bg-blue-500 transition-all duration-1000 ease-in-out" 
                     style={{ width: `${(state.physicalSystem + 1) * 50}%` }}
                   />
                 </div>
@@ -442,9 +514,48 @@ const SimpleUSPVisualization = () => {
                 </div>
                 <div className="w-full bg-gray-700 h-6 rounded-lg overflow-hidden">
                   <div 
-                    className="h-full bg-red-500" 
+                    className="h-full bg-red-500 transition-all duration-1500 ease-in-out" 
                     style={{ width: `${(state.observerSystem + 1) * 50}%` }}
                   />
+                </div>
+                
+                {/* Visual representation of OS and PS */}
+                <div className="mt-8 flex justify-center items-center h-32 relative">
+                  {/* Bridge metaphor */}
+                  <div className="absolute top-1/2 left-0 right-0 h-1 bg-gray-600 transform -translate-y-1/2"></div>
+                  
+                  {/* Physical System */}
+                  <div 
+                    className="absolute w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center transition-all duration-1000 ease-in-out"
+                    style={{ 
+                      left: `${(state.physicalSystem + 1) * 40}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    <span className="text-white font-bold">PS</span>
+                  </div>
+                  
+                  {/* Observer System */}
+                  <div 
+                    className="absolute w-16 h-16 bg-red-500 rounded-full flex items-center justify-center transition-all duration-1500 ease-in-out"
+                    style={{ 
+                      left: `${(state.observerSystem + 1) * 40}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  >
+                    <span className="text-white font-bold">OS</span>
+                    
+                    {/* Connection line between PS and OS */}
+                    <div 
+                      className="absolute top-1/2 h-0.5 bg-yellow-400 transition-all duration-1000"
+                      style={{ 
+                        width: `${Math.abs(state.physicalSystem - state.observerSystem) * 80}%`,
+                        left: state.physicalSystem > state.observerSystem ? '100%' : 'auto',
+                        right: state.physicalSystem <= state.observerSystem ? '100%' : 'auto',
+                        opacity: 0.6
+                      }}
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -498,6 +609,32 @@ const SimpleUSPVisualization = () => {
             δ|S<sub>PS</sub>(t) - S<sub>OS</sub>(t)| measures the discrepancy between reality (Physical System)
             and internal model (Observer System).
           </p>
+        </div>
+      </div>
+      
+      {/* State Change Legend */}
+      <div className="mt-8 bg-black/30 p-4 rounded-lg">
+        <h3 className="text-lg font-semibold mb-2">State Change Visualization</h3>
+        <p className="text-gray-300 text-sm mb-4">
+          When the Observer System updates, watch for these visual cues:
+        </p>
+        <div className="flex flex-wrap gap-4 justify-center">
+          <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-blue-500 mr-2"></div>
+            <span className="text-sm">Normal OS State</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
+            <span className="text-sm">Updated OS State</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 rounded-full bg-yellow-400 mr-2"></div>
+            <span className="text-sm">Prediction Error</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 animate-pulse mr-2 bg-green-500"></div>
+            <span className="text-sm">State Change Indicator</span>
+          </div>
         </div>
       </div>
     </div>

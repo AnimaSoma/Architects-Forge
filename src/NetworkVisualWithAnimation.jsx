@@ -41,23 +41,23 @@ const AnimationStyles = () => (
     }
     
     .node-pulse {
-      animation: pulse 2s infinite;
+      animation: pulse 4s infinite;
     }
     
     .node-float {
-      animation: float 3s infinite ease-in-out;
+      animation: float 6s infinite ease-in-out;
     }
     
     .node-color-shift {
-      animation: colorShift 5s infinite;
+      animation: colorShift 10s infinite;
     }
     
     .connection-flash {
-      animation: flashConnection 3s infinite;
+      animation: flashConnection 6s infinite;
     }
     
     .spin-slow {
-      animation: spin 20s infinite linear;
+      animation: spin 40s infinite linear;
     }
     
     .physical-system {
@@ -75,15 +75,15 @@ const AnimationStyles = () => (
     /* Reduced animations for mobile devices */
     @media (max-width: 768px) {
       .spin-slow {
-        animation-duration: 40s; /* Slower spin on mobile */
+        animation-duration: 60s; /* Even slower spin on mobile */
       }
       
       .node-float {
-        animation-duration: 4s; /* Slower float on mobile */
+        animation-duration: 8s; /* Slower float on mobile */
       }
       
       .connection-flash {
-        animation-duration: 4s; /* Slower flash on mobile */
+        animation-duration: 8s; /* Slower flash on mobile */
       }
     }
   `}</style>
@@ -212,19 +212,19 @@ const NetworkVisualWithAnimation = () => {
     // Update frame counter (visible proof of animation)
     setFrameCount(prev => (prev + 1) % 1000);
     
-    // Update elapsed time
-    setElapsedTime(prev => +(prev + 0.1).toFixed(1));
+    // Update elapsed time (slower progression)
+    setElapsedTime(prev => +(prev + 0.05).toFixed(2));
     
     setState(prev => {
       // Calculate new physical system value using sine wave for predictable oscillation
       const time = elapsedTime;
-      const newPhysicalValue = 0.5 + 0.4 * Math.sin(time * 0.5);
+      const newPhysicalValue = 0.5 + 0.4 * Math.sin(time * 0.25); // slower oscillation
       
       // Update each node with animation-focused changes
       const newNodes = prev.nodes.map((node, i) => {
         // Create phase-shifted observations for each node
         const nodeTime = time + node.phaseOffset;
-        const newObservation = 0.5 + 0.3 * Math.sin(nodeTime * 0.5);
+        const newObservation = 0.5 + 0.3 * Math.sin(nodeTime * 0.25); // slower oscillation
         
         // Determine if node is confirming based on simple time-based pattern
         // This ensures some nodes will always be confirming for visual interest
@@ -243,7 +243,7 @@ const NetworkVisualWithAnimation = () => {
       });
       
       // Periodically trigger consensus for visual effect
-      const consensusReached = Math.sin(time * 0.3) > 0.7;
+      const consensusReached = Math.sin(time * 0.15) > 0.7; // slower trigger
       
       return {
         ...prev,
