@@ -16,9 +16,9 @@ const SimpleUSPVisualization = () => {
       alpha: 1.0,         // α - Weight for magnitude
       beta: 0.5,          // β - Weight for variance
       delta: 1.0,         // δ - Prediction error sensitivity
-      gamma: 0.1,         // γ - Energy cost factor
+      gamma: 0.3,         // γ - Energy cost factor (increased from 0.1)
       eMax: 100.0,        // Maximum energy capacity
-      energyInflux: 5.0,  // Energy recovery rate
+      energyInflux: 0.3,  // Energy recovery rate (reduced from 5.0)
       updateThreshold: 20.0, // Threshold for update events
       updateRate: 0.7     // Rate of observer system updates
     },
@@ -33,7 +33,8 @@ const SimpleUSPVisualization = () => {
     observerSystem: 0.1,
     running: false,
     updateCount: 0,
-    lastUpdateTime: 0
+    lastUpdateTime: 0,
+    energyDrainEffect: false // New state for energy drain visual effect
   });
 
   // Animation frame reference
@@ -77,22 +78,38 @@ const SimpleUSPVisualization = () => {
       let newObserverSystem = observerSystem;
       let updateCount = state.updateCount;
       let lastUpdateTime = state.lastUpdateTime;
+      let energyDrainEffect = false;
       
-      // Calculate energy changes
-      let energyCost = 0;
+      // Base energy recovery (much slower now)
+      const energyInflux = params.energyInflux * dt;
       
-      // Base energy recovery (slower than before)
-      const energyInflux = params.energyInflux * dt * 0.5;
+      // Constant background energy drain based on update signal
+      const backgroundDrain = 0.1 * updateSignal * dt;
       
-      // Significant energy cost when update occurs
+      // Cumulative cost based on uIntegral
+      const cumulativeCost = params.gamma * uIntegral * dt;
+      
+      // Calculate total energy cost
+      let energyCost = backgroundDrain + cumulativeCost;
+      
+      // New uIntegral calculation
+      let newUIntegral = uIntegral + (updateSignal * dt);
+      
       if (shouldUpdate) {
-        // Higher energy cost for updates
-        energyCost = 30 + (error * 20); // Base cost + error-proportional cost
+        // Drastic energy cost for updates (40-60% of current energy)
+        const updateCost = energyBudget * (0.4 + (error * 0.2)); // 40-60% based on error magnitude
+        energyCost += updateCost;
+        
+        // Reset uIntegral after significant expenditure
+        newUIntegral = 0;
         
         // Smoother transition to new state
         newObserverSystem = observerSystem + params.updateRate * (newPhysicalSystem - observerSystem) * 0.7;
         updateCount += 1;
         lastUpdateTime = time;
+        
+        // Activate energy drain visual effect
+        energyDrainEffect = true;
         
         // Show update notification for longer (3 seconds instead of 2)
         setShowUpdateEvent(true);
@@ -116,9 +133,6 @@ const SimpleUSPVisualization = () => {
             }, 1000);
           }, 1000);
         }, 1000);
-      } else {
-        // Small continuous energy cost even without updates
-        energyCost = params.gamma * uIntegral * dt * 0.5;
       }
       
       // Calculate new energy budget with depletion
@@ -129,9 +143,6 @@ const SimpleUSPVisualization = () => {
           energyBudget - energyCost + energyInflux
         )
       );
-      
-      // Update uIntegral with more significant accumulation
-      const newUIntegral = uIntegral + (updateSignal * dt) + (shouldUpdate ? 10 : 0);
       
       return {
         ...state,
@@ -144,7 +155,8 @@ const SimpleUSPVisualization = () => {
         physicalSystem: newPhysicalSystem,
         observerSystem: newObserverSystem,
         updateCount,
-        lastUpdateTime
+        lastUpdateTime,
+        energyDrainEffect
       };
     } catch (error) {
       console.error("Calculation error:", error);
@@ -179,9 +191,9 @@ const SimpleUSPVisualization = () => {
         alpha: 1.0,
         beta: 0.5,
         delta: 1.0,
-        gamma: 0.1,
+        gamma: 0.3,         // Increased from 0.1
         eMax: 100.0,
-        energyInflux: 5.0,
+        energyInflux: 0.3,  // Reduced from 5.0
         updateThreshold: 20.0,
         updateRate: 0.7
       },
@@ -195,7 +207,8 @@ const SimpleUSPVisualization = () => {
       observerSystem: 0.1,
       running: false,
       updateCount: 0,
-      lastUpdateTime: 0
+      lastUpdateTime: 0,
+      energyDrainEffect: false
     });
     setShowUpdateEvent(false);
     setStateChangeIndicator({ active: false, phase: 0 });
@@ -234,21 +247,60 @@ const SimpleUSPVisualization = () => {
     };
   }, []);
 
-  // Simple bar visualization component
-  const BarVisualization = ({ value, maxValue, label, color }) => (
-    <div className="mb-4">
-      <div className="flex justify-between mb-1">
-        <span className="text-sm font-medium">{label}</span>
-        <span className="text-sm font-medium">{value.toFixed(2)}</span>
+  // Reset energy drain effect after a short delay
+  useEffect(() => {
+    if (state.energyDrainEffect) {
+      const timer = setTimeout(() => {
+        setState(prev => ({ ...prev, energyDrainEffect: false }));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [state.energyDrainEffect]);
+
+  // Enhanced bar visualization component with special effects for energy
+  const BarVisualization = ({ value, maxValue, label, color, isEnergy = false }) => {
+    // Special styling for energy when it's low or draining
+    let barColor = color;
+    let pulseEffect = '';
+    
+    if (isEnergy) {
+      // Change color based on energy level
+      if (value < 30) {
+        barColor = 'bg-red-500';
+        pulseEffect = 'animate-pulse';
+      } else if (value < 60) {
+        barColor = 'bg-yellow-500';
+      }
+      
+      // Add drain effect
+      if (state.energyDrainEffect) {
+        barColor = 'bg-red-600';
+        pulseEffect = 'animate-pulse';
+      }
+    }
+    
+    return (
+      <div className="mb-4">
+        <div className="flex justify-between mb-1">
+          <span className="text-sm font-medium">{label}</span>
+          <span className={`text-sm font-medium ${isEnergy && value < 30 ? 'text-red-400' : ''}`}>
+            {value.toFixed(2)}
+          </span>
+        </div>
+        <div className="w-full bg-gray-700 rounded-full h-4">
+          <div 
+            className={`h-4 rounded-full ${barColor} transition-all duration-700 ${pulseEffect}`} 
+            style={{ width: `${Math.min(100, (value / maxValue) * 100)}%` }}
+          />
+        </div>
+        {isEnergy && value < 20 && (
+          <div className="text-xs text-red-400 mt-1 animate-pulse">
+            Energy critically low! Recovery needed.
+          </div>
+        )}
       </div>
-      <div className="w-full bg-gray-700 rounded-full h-4">
-        <div 
-          className={`h-4 rounded-full ${color} transition-all duration-700`} 
-          style={{ width: `${Math.min(100, (value / maxValue) * 100)}%` }}
-        />
-      </div>
-    </div>
-  );
+    );
+  };
 
   // State change indicator component
   const StateChangeIndicator = () => {
@@ -284,6 +336,19 @@ const SimpleUSPVisualization = () => {
           }}
         >
           <div className="text-white font-bold">OS</div>
+        </div>
+      </div>
+    );
+  };
+
+  // Energy drain effect component
+  const EnergyDrainEffect = () => {
+    if (!state.energyDrainEffect) return null;
+    
+    return (
+      <div className="absolute inset-0 bg-red-500/20 animate-pulse rounded-lg z-5 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-red-500 font-bold text-2xl">
+          ENERGY DRAIN
         </div>
       </div>
     );
@@ -397,14 +462,14 @@ const SimpleUSPVisualization = () => {
             
             <div>
               <label className="flex justify-between mb-1">
-                <span>Energy Influx: {state.params.energyInflux.toFixed(1)}</span>
-                <span className="text-xs bg-blue-800 px-2 py-1 rounded" title="Rate of energy recovery">?</span>
+                <span>Energy Influx: {state.params.energyInflux.toFixed(2)}</span>
+                <span className="text-xs bg-blue-800 px-2 py-1 rounded" title="Rate of energy recovery (very slow)">?</span>
               </label>
               <input 
                 type="range" 
-                min="1" 
-                max="10" 
-                step="0.5" 
+                min="0.1" 
+                max="2.0" 
+                step="0.1" 
                 value={state.params.energyInflux}
                 onChange={(e) => updateParameter('energyInflux', parseFloat(e.target.value))}
                 className="w-full"
@@ -467,6 +532,9 @@ const SimpleUSPVisualization = () => {
       {showUpdateEvent && (
         <div className="bg-green-600/30 border border-green-500 p-3 rounded-md mb-8 text-center animate-pulse">
           <strong>Update Event Occurred!</strong> The Observer System has updated its internal model.
+          {state.energyBudget < 40 && (
+            <div className="text-red-400 text-sm mt-1">Warning: Energy reserves depleted!</div>
+          )}
         </div>
       )}
       
@@ -476,6 +544,9 @@ const SimpleUSPVisualization = () => {
         
         {/* State Change Indicator */}
         <StateChangeIndicator />
+        
+        {/* Energy Drain Effect Overlay */}
+        <EnergyDrainEffect />
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">
@@ -497,7 +568,8 @@ const SimpleUSPVisualization = () => {
               value={state.energyBudget} 
               maxValue={state.params.eMax} 
               label="Energy Budget" 
-              color="bg-green-500" 
+              color="bg-green-500"
+              isEnergy={true}
             />
             
             <BarVisualization 
@@ -598,6 +670,13 @@ const SimpleUSPVisualization = () => {
                   <p className="text-xl">{state.lastUpdateTime.toFixed(1)}</p>
                 </div>
               </div>
+              
+              {/* Energy status message */}
+              {state.energyBudget < 30 && (
+                <div className="mt-4 p-2 bg-red-900/50 rounded text-center animate-pulse">
+                  <p className="text-red-300 text-sm">Energy critically low - updates restricted</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -617,7 +696,7 @@ const SimpleUSPVisualization = () => {
           <h3 className="text-lg font-semibold mb-2">Energy Budget</h3>
           <p className="text-gray-300 text-sm">
             (E<sub>max</sub> - γ∫<sub>0</sub><sup>t</sup> U(τ)dτ + I(t)) tracks available resources.
-            Updates consume energy that must be replenished over time.
+            Updates consume energy that must be replenished over time. Energy recovery is slow, while updates are costly.
           </p>
         </div>
         
@@ -650,8 +729,8 @@ const SimpleUSPVisualization = () => {
             <span className="text-sm">Prediction Error</span>
           </div>
           <div className="flex items-center">
-            <div className="w-4 h-4 animate-pulse mr-2 bg-green-500"></div>
-            <span className="text-sm">State Change Indicator</span>
+            <div className="w-4 h-4 animate-pulse mr-2 bg-red-500"></div>
+            <span className="text-sm">Energy Drain</span>
           </div>
         </div>
       </div>
