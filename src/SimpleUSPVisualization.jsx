@@ -43,6 +43,8 @@ const SimpleUSPVisualization = () => {
 
   // Animation frame reference
   const animationRef = useRef(null);
+  // Hold latest running flag to avoid stale closure
+  const runningRef = useRef(state.running);
   
   // Show update event notification
   const [showUpdateEvent, setShowUpdateEvent] = useState(false);
@@ -54,9 +56,13 @@ const SimpleUSPVisualization = () => {
   });
 
   // Calculate next state based on current state
-  const calculateNextState = useCallback(() => {
+  // ---------- Pure transition function ----------
+  // Accept previous state and return next state.  By passing this
+  // function to setState(prev => fn(prev)) we avoid stale–closure bugs
+  // that were freezing the simulation when `state` stopped updating.
+  const calculateNextState = (prev) => {
     try {
-      const { 
+      const {
         params, 
         physicalSystem, 
         observerSystem, 
@@ -218,7 +224,7 @@ const SimpleUSPVisualization = () => {
                           Math.abs(newEnergyBudget - lastEnergyBudget) < 0.1;
       
       return {
-        ...state,
+        ...prev,
         time: time + dt,
         updateSignal,
         salience,
@@ -238,23 +244,21 @@ const SimpleUSPVisualization = () => {
     } catch (error) {
       console.error("Calculation error:", error);
       return {
-        ...state,
+        ...prev,
         running: false
       };
     }
-  }, [state]);
+  };
   
   // Animation step
   const animationStep = useCallback(() => {
-    setState(calculateNextState());
-    
-    if (state.running) {
-      // Slower animation frame rate for smoother visualization
-      setTimeout(() => {
-        animationRef.current = requestAnimationFrame(animationStep);
-      }, 50); // Added delay to slow down animation
+    // Functional update to always use freshest state
+    setState(prev => calculateNextState(prev));
+
+    if (runningRef.current) {
+      animationRef.current = requestAnimationFrame(animationStep);
     }
-  }, [calculateNextState, state.running]);
+  }, []);
   
   // Toggle simulation running state
   const toggleSimulation = useCallback(() => {
@@ -308,6 +312,8 @@ const SimpleUSPVisualization = () => {
   
   // Handle animation frame effect
   useEffect(() => {
+    runningRef.current = state.running;
+
     if (state.running) {
       animationRef.current = requestAnimationFrame(animationStep);
     }
