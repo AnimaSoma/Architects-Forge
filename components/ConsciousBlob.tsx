@@ -1,5 +1,5 @@
 "use client";
-import { useFrame, useThree, useLoader } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import {
   Sphere,
   OrbitControls,
@@ -11,44 +11,13 @@ import { useTouchMemory } from './useTouchMemory';
 import { BlobMaterial } from './BlobMaterial';
 import { useISRM } from '../store/ism';
 import { useBlobQueue } from '../store/blobQueue';
-import { useThinking } from '../store/thinking';
 
 export default function ConsciousBlob() {
   const mesh = useRef<THREE.Mesh>(null!);
   const { camera, gl } = useThree();
   const { memories, addTouch, update } = useTouchMemory();
-  // thinking state from store
-  const { thinking } = useThinking();
-  
-  // Load fractal mask texture
-  const fractalTexture = useMemo(() => {
-    try {
-      return new THREE.TextureLoader().load('/fractal.png');
-    } catch (e) {
-      // Fallback - create procedural noise texture
-      const canvas = document.createElement('canvas');
-      canvas.width = canvas.height = 256;
-      const ctx = canvas.getContext('2d')!;
-      for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-          const r = Math.floor(Math.random() * 255);
-          ctx.fillStyle = `rgb(${r},${r},${r})`;
-          ctx.fillRect(x, y, 1, 1);
-        }
-      }
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-      return texture;
-    }
-  }, []);
-  
   // shader material instance
-  const material = useMemo(() => {
-    const mat = new BlobMaterial();
-    // Set the fractal mask texture
-    mat.mask = fractalTexture;
-    return mat;
-  }, [fractalTexture]);
+  const material = useMemo(() => new BlobMaterial(), []);
 
   // ISRM global store -------------------------------
   const {
@@ -122,9 +91,6 @@ export default function ConsciousBlob() {
     const inertiaValue = 1 - energy; // simple proxy: low energy → high inertia
     material.deltaC = coherenceTension;
     material.inertia = inertiaValue;
-    
-    // Update thinking state for fractal overlay
-    material.thinking = thinking ? 1.0 : 0.0;
 
     // simple perlin-like pulse animation & avoidance
     const time = state.clock.getElapsedTime();
