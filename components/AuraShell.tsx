@@ -269,7 +269,7 @@ export default function AuraShell() {
   return (
     <>
       {/* Chat window – centered under hero blob */}
-      <div className="glass w-full max-w-xl mx-auto mt-6 max-h-[60vh] flex flex-col overflow-hidden rounded-lg shadow-lg">
+      <div className="glass w-full sm:max-w-xl mx-auto mt-6 max-h-[70vh] sm:max-h-[60vh] flex flex-col overflow-hidden rounded-none sm:rounded-lg shadow-lg">
         <div className="bg-black/40 px-3 py-2 border-b border-white/10 flex justify-between items-center relative">
           <span className="text-primary text-sm font-medium relative z-10">
             Aura
@@ -296,7 +296,7 @@ export default function AuraShell() {
           )}
         </div>
         <div
-          className="flex-1 overflow-y-auto p-3 space-y-2 text-sm"
+          className="flex-1 min-h-[40vh] overflow-y-auto p-3 space-y-2 text-sm"
           ref={messagesRef}
         >
           <AnimatePresence>
@@ -324,7 +324,7 @@ export default function AuraShell() {
         </div>
         <form
           onSubmit={handleSubmit}
-          className="border-t border-white/10 flex"
+          className="border-t border-white/10 flex fixed bottom-0 inset-x-0 sm:static bg-black/70 sm:bg-transparent"
         >
           <input
             value={input}
@@ -344,70 +344,7 @@ export default function AuraShell() {
         </form>
       </div>
 
-      {/* HUD */}
-      <div className="fixed top-4 left-4 flex flex-col space-y-2 text-xs">
-        <div className="glass-dark p-2 rounded-lg">
-          <div className="text-primary/80 mb-1 text-center">ISRM Metrics</div>
-          {[
-            { label: "ΔS", val: metrics.predictionError, color: "bg-red-500", desc: "Prediction Error" },
-            { label: "ΔC", val: metrics.coherenceTension, color: "bg-yellow-500", desc: "Coherence Tension" },
-            { label: "U(t)", val: metrics.utility, color: "bg-green-500", desc: "Utility Function" },
-            { label: "E", val: metrics.energy, color: "bg-blue-500", desc: "Energy Level" }
-          ].map(m => (
-            <div key={m.label} className="mb-1 last:mb-0">
-              <div className="flex justify-between text-[10px] text-white/60 mb-0.5">
-                <span>{m.label}</span>
-                <span>{m.desc}</span>
-              </div>
-              <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
-                <motion.div
-                  className={`${m.color} h-full`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${m.val * 100}%` }}
-                  transition={{ type: "spring", stiffness: 100, damping: 15 }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Energy visualization */}
-        <motion.div 
-          className="glass-dark p-2 rounded-lg flex items-center space-x-2"
-          animate={{ 
-            boxShadow: metrics.energy < 0.2 
-              ? ['0 0 0px rgba(88, 196, 220, 0)', '0 0 10px rgba(255, 0, 0, 0.5)', '0 0 0px rgba(88, 196, 220, 0)'] 
-              : 'none'
-          }}
-          transition={{ repeat: metrics.energy < 0.2 ? Infinity : 0, duration: 1 }}
-        >
-          <div className="relative w-6 h-6 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-primary">
-              <path 
-                fill="currentColor" 
-                d="M12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8m0-18A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2m-1 5h2v6h-2V7m0 8h2v2h-2v-2z"
-              />
-            </svg>
-            <motion.div 
-              className="absolute inset-0 rounded-full border-2 border-primary"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-            />
-          </div>
-          <div className="flex-1">
-            <div className="text-[10px] text-white/60 mb-0.5">System Status</div>
-            <div className="text-xs">
-              {metrics.energy < 0.2 ? (
-                <span className="text-red-400">Low Energy Warning</span>
-              ) : metrics.predictionError > 0.7 ? (
-                <span className="text-yellow-400">High Uncertainty</span>
-              ) : (
-                <span className="text-primary">Operational</span>
-              )}
-            </div>
-          </div>
-        </motion.div>
-      </div>
+      {/* HUD overlay removed per mobile simplification */}
     </>
   );
 }
