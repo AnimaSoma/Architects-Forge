@@ -21,6 +21,8 @@ export default function AuraShell() {
     utility: 0.6,          // U(t)
     energy: 1.0            // E – start with full pool
   });
+  // mobile HUD toggle
+  const [showHud, setShowHud] = useState(false);
   
   // Simple belief store Aura can update during chat
   const [beliefs, setBeliefs] = useState({
@@ -344,7 +346,82 @@ export default function AuraShell() {
         </form>
       </div>
 
-      {/* HUD overlay removed per mobile simplification */}
+      {/* HUD */}
+      {/* mobile HUD toggle button */}
+      <button
+        onClick={() => setShowHud(s => !s)}
+        className="sm:hidden fixed bottom-16 right-4 bg-primary/60 px-3 py-1 rounded shadow-lg text-[11px]"
+      >
+        {showHud ? '×' : 'ISRM'}
+      </button>
+
+      <div
+        className={`${
+          showHud ? 'flex' : 'hidden'
+        } sm:flex fixed sm:static top-4 left-4 flex-col space-y-2 text-xs`}
+      >
+        <div className="glass-dark p-2 rounded-lg">
+          <div className="text-primary/80 mb-1 text-center">ISRM Metrics</div>
+          {[
+            { label: "ΔS", val: metrics.predictionError, color: "bg-red-500", desc: "Prediction Error" },
+            { label: "ΔC", val: metrics.coherenceTension, color: "bg-yellow-500", desc: "Coherence Tension" },
+            { label: "U(t)", val: metrics.utility, color: "bg-green-500", desc: "Utility Function" },
+            { label: "E", val: metrics.energy, color: "bg-blue-500", desc: "Energy Level" }
+          ].map(m => (
+            <div key={m.label} className="mb-1 last:mb-0">
+              <div className="flex justify-between text-[10px] text-white/60 mb-0.5">
+                <span>{m.label}</span>
+                <span>{m.desc}</span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden flex">
+                <motion.div
+                  className={`${m.color} h-full`}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${m.val * 100}%` }}
+                  transition={{ type: "spring", stiffness: 100, damping: 15 }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* Energy visualization */}
+        <motion.div 
+          className="glass-dark p-2 rounded-lg flex items-center space-x-2"
+          animate={{ 
+            boxShadow: metrics.energy < 0.2 
+              ? ['0 0 0px rgba(88, 196, 220, 0)', '0 0 10px rgba(255, 0, 0, 0.5)', '0 0 0px rgba(88, 196, 220, 0)'] 
+              : 'none'
+          }}
+          transition={{ repeat: metrics.energy < 0.2 ? Infinity : 0, duration: 1 }}
+        >
+          <div className="relative w-6 h-6 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-primary">
+              <path 
+                fill="currentColor" 
+                d="M12 20c-4.41 0-8-3.59-8-8s3.59-8 8-8s8 3.59 8 8s-3.59 8-8 8m0-18A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2m-1 5h2v6h-2V7m0 8h2v2h-2v-2z"
+              />
+            </svg>
+            <motion.div 
+              className="absolute inset-0 rounded-full border-2 border-primary"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+            />
+          </div>
+          <div className="flex-1">
+            <div className="text-[10px] text-white/60 mb-0.5">System Status</div>
+            <div className="text-xs">
+              {metrics.energy < 0.2 ? (
+                <span className="text-red-400">Low Energy Warning</span>
+              ) : metrics.predictionError > 0.7 ? (
+                <span className="text-yellow-400">High Uncertainty</span>
+              ) : (
+                <span className="text-primary">Operational</span>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </div>
     </>
   );
 }
