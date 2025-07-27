@@ -12,7 +12,11 @@ class BlobMaterialImpl extends THREE.ShaderMaterial {
         uUtility: { value: 0.6 },
         uDeltaS: { value: 0 },   // local prediction error (0‒1)
         uDeltaC: { value: 0 },   // coherence loss
-        uInertia:{ value: 0 }    // inertia / sluggishness
+        uInertia:{ value: 0 },   // inertia / sluggishness
+        /* thinking overlay (0 = off, 1 = on) */
+        uThinking: { value: 0 },
+        /* fractal mask texture supplied by parent runtime */
+        uMask: { value: null }
       },
       // make bubble transparent & double-sided
       transparent: true,
@@ -27,8 +31,10 @@ class BlobMaterialImpl extends THREE.ShaderMaterial {
         uniform float uUtility;
         uniform float uDeltaS;
         uniform float uEnergy;
+        uniform float uThinking;
         uniform vec3 uMemPositions[10];
         uniform float uMemIntensities[10];
+        varying vec2 vUv;
         varying float vViewDot;
         varying vec3 vNormal;
         varying float vRipple;
@@ -65,7 +71,10 @@ class BlobMaterialImpl extends THREE.ShaderMaterial {
           vec3 p = position;
           // base FBM wobble
           float n = snoise(p*2.0+uTime*0.3);
-          p += normal * n * 0.15;
+          /* gentler breathing at rest — amps up with utility */
+          /* Reduce baseline wobble; full range now 0.02 – 0.17 */
+          float wobbleAmp = 0.02 + uUtility * 0.15;   // calmer at rest
+          p += normal * n * wobbleAmp;
           // avoidance ripple (from scars)
           float ripple=0.0;
           for(int i=0;i<10;i++){
@@ -74,12 +83,28 @@ class BlobMaterialImpl extends THREE.ShaderMaterial {
           /* ---------------------------------------------------------
              ISRM-driven deformation
            --------------------------------------------------------- */
-          float pulse       = sin(uTime*2.0) * uUtility;                       // urgency heartbeat
-          float jagged      = sin(30.0 * p.y + uTime*4.0) * uDeltaS;           // spikes from ΔS
+          // urgency heartbeat – amplitude will be adjusted below, so we
+          // omit the full-strength version to avoid duplicate definitions
+          // lattice-style jagged term – intersecting waves on X and Y
+          float jagged      = (sin(30.0 * p.y + uTime*4.0) * sin(30.0 * p.x + uTime*4.0)) * uDeltaS;
           float twist       = sin(p.y * 10.0 + uTime) * uDeltaC * 0.5;         // asym twist from ΔC
           float inertiaDamp = 1.0 / (1.0 + uInertia);                          // sluggishness
-          float deform      = (pulse + jagged + twist) * inertiaDamp
-                              + ripple*0.25;                                   // still include scars
+          /* reduce resting pulse amplitude to make idle state calmer */
+          float pulse       = sin(uTime*2.0) * uUtility * 0.5;                 // 50 % weaker
+
+          /* ---------------------------------------------------------
+             Certainty-driven features
+             – high ΔS  ⇒ spiky lattice  (uncertain)
+             – low  ΔS  ⇒ soft bubbles   (confident)
+          --------------------------------------------------------- */
+          float certainty   = clamp(1.0 - uDeltaS, 0.0, 1.0);                  // 0 = low cert, 1 = high
+          // sharp spikes – amplitude grows quadratically with ΔS
+          float spikeTerm   = abs(sin(40.0 * p.z + uTime*6.0)) * pow(uDeltaS, 2.0) * 0.4;
+          // soft bubbles – smoothed cosine bulges, scale with certainty & utility
+          float bubbleTerm  = pow(cos(6.0 * p.y + uTime*2.0), 2.0) * certainty * uUtility * 0.3;
+
+          float deform      = (pulse + jagged + twist + spikeTerm + bubbleTerm) * inertiaDamp
+                              + ripple*0.25;                                   // scars always contribute
 
           p += normal * deform;
           // view-angle iridescence term
@@ -89,14 +114,18 @@ class BlobMaterialImpl extends THREE.ShaderMaterial {
 
           vRipple = ripple;
           vNormal = normal;
+          vUv = uv;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(p,1.0);
         }`,
       fragmentShader: /* glsl */`
         varying float vRipple;
         varying float vViewDot;
+        varying vec2 vUv;
         uniform float uUtility;
         uniform float uEnergy;
         uniform float uDeltaS;
+        uniform float uThinking;
+        uniform sampler2D uMask;
         uniform float uTime;
         void main(){
           // hueShift ties colour cycle to ISRM state
@@ -120,6 +149,13 @@ class BlobMaterialImpl extends THREE.ShaderMaterial {
 
           // bubble transparency
           float alpha = 0.25 + 0.45 * brightness;
+
+          // -------------------------------------------------
+          // Thinking overlay — multiply alpha by fractal mask
+          // -------------------------------------------------
+          float mask = texture2D(uMask, vUv * 4.0).r;   // tile 4×
+          alpha *= mix(1.0, mask, clamp(uThinking, 0.0, 1.0));
+
           gl_FragColor = vec4(base, alpha);
         }`
     });
@@ -137,6 +173,8 @@ class BlobMaterialImpl extends THREE.ShaderMaterial {
   set deltaS(s:number){this.uniforms.uDeltaS.value=s;}
   set deltaC(c:number){this.uniforms.uDeltaC.value=c;}
   set inertia(i:number){this.uniforms.uInertia.value=i;}
+  // thinking state (0‒1)
+  set thinking(t:number){this.uniforms.uThinking.value=t;}
 }
 
 extend({ BlobMaterialImpl });
