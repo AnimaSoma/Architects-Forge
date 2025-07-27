@@ -92,19 +92,8 @@ class BlobMaterialImpl extends THREE.ShaderMaterial {
           /* reduce resting pulse amplitude to make idle state calmer */
           float pulse       = sin(uTime*2.0) * uUtility * 0.5;                 // 50 % weaker
 
-          /* ---------------------------------------------------------
-             Certainty-driven features
-             – high ΔS  ⇒ spiky lattice  (uncertain)
-             – low  ΔS  ⇒ soft bubbles   (confident)
-          --------------------------------------------------------- */
-          float certainty   = clamp(1.0 - uDeltaS, 0.0, 1.0);                  // 0 = low cert, 1 = high
-          // sharp spikes – amplitude grows quadratically with ΔS
-          float spikeTerm   = abs(sin(40.0 * p.z + uTime*6.0)) * pow(uDeltaS, 2.0) * 0.4;
-          // soft bubbles – smoothed cosine bulges, scale with certainty & utility
-          float bubbleTerm  = pow(cos(6.0 * p.y + uTime*2.0), 2.0) * certainty * uUtility * 0.3;
-
-          float deform      = (pulse + jagged + twist + spikeTerm + bubbleTerm) * inertiaDamp
-                              + ripple*0.25;                                   // scars always contribute
+          float deform      = (pulse + jagged + twist) * inertiaDamp
+                              + ripple*0.25;                                   // still include scars
 
           p += normal * deform;
           // view-angle iridescence term
