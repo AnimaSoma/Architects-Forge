@@ -48,7 +48,6 @@ export default function AuraShell() {
   useEffect(() => {
     if (Object.keys(isrmGraph).length === 0) {
       loadISRMHandbook();
-  useEffect(() => {  
       setInput("");
     // re-focus after state reset
     setTimeout(() => inputRef.current?.focus(), 0);
