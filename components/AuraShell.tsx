@@ -236,10 +236,7 @@ export default function AuraShell() {
 
       /* ---------- Build final response respecting salience ---------- */
       let final = best ? best.text : '';
-      if (best && best.salience < 0.3) {
-        // low salience → give only the first sentence (terse)
-        final = final.split(/[.!?]/)[0].trim() + '.';
-      }
+
 
       let response: string;
       if (best && best.utility > 0.4) {
