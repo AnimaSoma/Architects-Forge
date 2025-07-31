@@ -188,7 +188,7 @@ export default function AuraShell() {
     setInput('');
     inputRef.current?.focus();
     return;
-  }
+  };
 
   const tags = extractTags(input);
   const belief = retrieveBelief(tags);    }
