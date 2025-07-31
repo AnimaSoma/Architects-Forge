@@ -5,6 +5,8 @@ import { useBlobQueue } from '../store/blobQueue';
 import { useAuraMemory } from '../store/auraMemory';
 import { loadISRMHandbook } from '../utils/loadISRMHandbook';
 import { interceptUserMessage } from '../utils/isrmOverride';
+import { ModelMemory, MemoryEntry } from '../utils/ModelMemory'; // ISRM memory module
+
 
 export default function AuraShell() {
   const [messages, setMessages] = useState<string[]>([
@@ -38,8 +40,8 @@ export default function AuraShell() {
   /*  ISRM Handbook bootstrap                                           */
   /* ------------------------------------------------------------------ */
   const { isrmGraph, retrieveBelief, strengthenBelief } = useAuraMemory();
-
-  // load handbook once on mount
+  const auraMemory = new ModelMemory(); // Initialize memory system
+  // load handbook once on mountx
   useEffect(() => {
     if (Object.keys(isrmGraph).length === 0) {
       loadISRMHandbook();
@@ -154,6 +156,20 @@ export default function AuraShell() {
     
     // Add user message
     setMessages(prev => [...prev, `You: ${input.trim()}`]);
+    
+    // ⬇️ Log memory entry
+if (best) {
+  const memoryEntry: MemoryEntry = {
+    topic: tags[0] || 'general',
+    input,
+    response,
+    deltaS: best.deltaS,
+    deltaC: best.deltaC,
+    utility: best.utility,
+    timestamp: Date.now()
+  };
+  auraMemory.addEntry(memoryEntry);
+}
     // Scar the blob for every user question
     addScar();
 
