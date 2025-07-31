@@ -176,7 +176,7 @@ export default function AuraShell() {
       
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  if (!input.trim()) return;
+  if (!input.trim()) return};
 
   // Add user message
   setMessages(prev => [...prev, `You: ${input.trim()}`]);
