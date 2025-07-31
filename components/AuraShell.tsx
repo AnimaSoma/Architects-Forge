@@ -7,6 +7,7 @@ import { loadISRMHandbook } from '../utils/loadISRMHandbook';
 import { interceptUserMessage } from '../utils/isrmOverride';
 import { ModelMemory, MemoryEntry } from '../utils/ModelMemory'; // ISRM memory module
 import { EnergyManager } from '../utils/EnergyManager';
+import { ISRMCore } from '../utils/ISRM_Core';
 
 export default function AuraShell() {
   const [messages, setMessages] = useState<string[]>([
@@ -42,6 +43,7 @@ export default function AuraShell() {
   const { isrmGraph, retrieveBelief, strengthenBelief } = useAuraMemory();
   const auraMemory = new ModelMemory(); // Initialize memory system
   const energySystem = new EnergyManager();
+  const isrmCore = new ISRMCore();
   // load handbook once on mountx
   useEffect(() => {
     if (Object.keys(isrmGraph).length === 0) {
@@ -224,10 +226,28 @@ if (best) {
         .map(r => (r as PromiseFulfilledResult<string>).value)
         .filter(Boolean);
 
-      const scored = replies.map(txt => ({ text: txt, ...scoreWithISRM(txt) }))
-                            .sort((a, b) => b.utility - a.utility);
+      const scored = replies.map(text => {
+  const deltaS = Math.min(1, 0.4 + Math.random() * 0.4);
+  const deltaC = Math.max(0, 0.5 - Math.random() * 0.3);
+  const ru = Math.random() * 0.2; // optional recursive activity
+  const energy = energySystem.get();
+
+  const isrmResult = isrmCore.compute({ deltaS, deltaC, energy, ru });
+
+  return {
+    text,
+    ...isrmResult
+  };
+}).sort((a, b) => b.utility - a.utility);
+
 
       const best = scored[0];
+      if (best.utility < 0.2) {
+  setMessages(prev => [...prev, "Aura: Utility collapse detected. Recalibrating..."]);
+  setIsRecalibrating(true);
+  return;
+}
+
       /* ---------- Build final response respecting salience ---------- */
       let final = best ? best.text : '';
       if (best && best.salience < 0.3) {
