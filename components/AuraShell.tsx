@@ -52,7 +52,7 @@ export default function AuraShell() {
       setInput("");
     // re-focus after state reset
     setTimeout(() => inputRef.current?.focus(), 0);
-  },[]);
+  };
     }
   }, [isrmGraph]);
 
