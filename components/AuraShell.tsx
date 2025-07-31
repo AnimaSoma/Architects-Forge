@@ -45,15 +45,16 @@ export default function AuraShell() {
   const energySystem = new EnergyManager();
   const isrmCore = new ISRMCore();
   // load handbook once on mountx
-  useEffect(() => {
-    if (Object.keys(isrmGraph).length === 0) {
-      loadISRMHandbook();
-      setInput("");
-    // re-focus after state reset
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }, []);
-    }
-  }, [isrmGraph]);
+ useEffect(() => {
+  if (Object.keys(isrmGraph).length === 0) {
+    loadISRMHandbook();
+  }
+
+  // Only run once when graph loads
+  setInput("");
+  setTimeout(() => inputRef.current?.focus(), 0);
+}, [isrmGraph]);
+
 
   /* ------------------------------------------------------ */
   /*  Auto-scroll chat to most recent message               */
