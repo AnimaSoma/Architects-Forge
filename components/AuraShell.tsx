@@ -159,26 +159,12 @@ export default function AuraShell() {
   // (previous high-uncertainty injections removed for this simplified flow)
 
 
-    /* ---------------- belief retrieval ---------------- */
-    const tags = extractTags(input);
-    const belief = retrieveBelief(tags);
     
-    // Check for convergence trigger keywords
-    const triggerPattern = /begin convergence|initiate tipping point/i;
-    if (triggerPattern.test(input)) {
-      // Set metrics to convergence state
-      setMetrics({
-        predictionError: 0.8,
-        coherenceTension: 0.9,
-        utility: 0.2,
-        energy: 0.4
-      });
       
-  const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-  if (!input.trim()) return};
+  if (!input.trim()) return;
 
-  // Add user message
   setMessages(prev => [...prev, `You: ${input.trim()}`]);
   addScar();
 
@@ -188,112 +174,112 @@ export default function AuraShell() {
     setInput('');
     inputRef.current?.focus();
     return;
-  };
+  }
 
   const tags = extractTags(input);
-  const belief = retrieveBelief(tags);    }
-    // Simulate Aura's thinking process
-    setIsRecalibrating(true);
-    
-    /* ----------- New dual-LLM fusion path ----------- */
-    setTimeout(async () => {
-      // Query GPT & Gemini concurrently
-      const [gpt, gemini] = await Promise.allSettled([
-        fetchGPT(input, metrics, belief?.summary),            // pass live metrics snapshot plus belief
-        fetchGemini(input)
-      ]);
+  const belief = retrieveBelief(tags);
 
-      const replies = [gpt, gemini]
-        .filter(r => r.status === 'fulfilled')
-        .map(r => (r as PromiseFulfilledResult<string>).value)
-        .filter(Boolean);
-
-      const scored = replies.map(text => {
-  const deltaS = Math.min(1, 0.4 + Math.random() * 0.4);
-  const deltaC = Math.max(0, 0.5 - Math.random() * 0.3);
-  const ru = Math.random() * 0.2; // optional recursive activity
-  const energy = energySystem.get();
-
-  const isrmResult = isrmCore.compute({ deltaS, deltaC, energy, ru });
-
-  return {
-    text,
-    ...isrmResult
-  };
-}).sort((a, b) => b.utility - a.utility);
-
-
-      const best = scored[0];
-      if (best.utility < 0.2) {
-  setMessages(prev => [...prev, "Aura: Utility collapse detected. Recalibrating..."]);
-  setIsRecalibrating(true);
-  return;
-}
-
-      /* ---------- Build final response respecting salience ---------- */
-      let final = best ? best.text : '';
-
-
-      let response: string;
-      if (best && best.utility > 0.4) {
-        response = final;
-      } else {
-        // minimal fallback, no auto-generated filler
-        response = 'Acknowledged.';
-      }
-
-      setMessages(prev => [...prev, `Aura: ${response}`]);
-if (best) {
-  const memoryEntry: MemoryEntry = {
-    topic: tags[0] || 'general',
-    input,
-    response,
-    deltaS: best.breakdown.deltaS,
-    deltaC: best.breakdown.deltaC,
-    utility: best.utility,
-    timestamp: Date.now()
-  };
-  auraMemory.addEntry(memoryEntry);
-
-  if (best.utility > 0.5) {
-    energySystem.rewardISRM(best.utility);
+  const triggerPattern = /begin convergence|initiate tipping point/i;
+  if (triggerPattern.test(input)) {
+    setMetrics({
+      predictionError: 0.8,
+      coherenceTension: 0.9,
+      utility: 0.2,
+      energy: 0.4
+    });
+    return;
   }
-}            // If response useful, strengthen the referenced belief
-      if (belief && best && best.utility > 0.4) {
-        strengthenBelief(belief.id, 0.05);
+
+  setIsRecalibrating(true);
+
+  setTimeout(async () => {
+    const [gpt, gemini] = await Promise.allSettled([
+      fetchGPT(input, metrics, belief?.summary),
+      fetchGemini(input)
+    ]);
+
+    const replies = [gpt, gemini]
+      .filter(r => r.status === 'fulfilled')
+      .map(r => (r as PromiseFulfilledResult<string>).value)
+      .filter(Boolean);
+
+    const scored = replies.map(text => {
+      const deltaS = Math.min(1, 0.4 + Math.random() * 0.4);
+      const deltaC = Math.max(0, 0.5 - Math.random() * 0.3);
+      const ru = Math.random() * 0.2;
+      const energy = energySystem.get();
+
+      const isrmResult = isrmCore.compute({ deltaS, deltaC, energy, ru });
+
+      return {
+        text,
+        ...isrmResult
+      };
+    }).sort((a, b) => b.utility - a.utility);
+
+    const best = scored[0];
+    if (best.utility < 0.2) {
+      setMessages(prev => [...prev, "Aura: Utility collapse detected. Recalibrating..."]);
+      setIsRecalibrating(true);
+      return;
+    }
+
+    let final = best ? best.text : '';
+    let response = best && best.utility > 0.4 ? final : 'Acknowledged.';
+    setMessages(prev => [...prev, `Aura: ${response}`]);
+
+    if (best) {
+      const memoryEntry: MemoryEntry = {
+        topic: tags[0] || 'general',
+        input,
+        response,
+        deltaS: best.breakdown.deltaS,
+        deltaC: best.breakdown.deltaC,
+        utility: best.utility,
+        timestamp: Date.now()
+      };
+      auraMemory.addEntry(memoryEntry);
+
+      if (best.utility > 0.5) {
+        energySystem.rewardISRM(best.utility);
+      }
+    }
+
+    if (belief && best && best.utility > 0.4) {
+      strengthenBelief(belief.id, 0.05);
+    }
+
+    function tokensFromText(t: string) {
+      return Math.ceil(t.length / 4);
+    }
+
+    setMetrics(prev => {
+      const tokenCost = tokensFromText(response) * 0.0005;
+      const energy = Math.max(0, prev.energy - tokenCost);
+      let predictionError = prev.predictionError;
+      let coherenceTension = prev.coherenceTension;
+      if (best && best.utility > 0.4) {
+        predictionError = Math.max(0, predictionError - 0.05);
+        coherenceTension = Math.max(0, coherenceTension - 0.03);
+      } else {
+        predictionError = Math.min(1, predictionError + 0.05);
       }
 
-      /* ------- ISRM impact from response ------- */
-      function tokensFromText(t: string) {
-        return Math.ceil(t.length / 4); // rough = 4 chars / token
-      }
+      return {
+        predictionError,
+        coherenceTension,
+        utility: best?.utility ?? prev.utility,
+        energy
+      };
+    });
 
-      setMetrics(prev => {
-        // energy cost proportional to tokens streamed
-        const tokenCost = tokensFromText(response) * 0.0005;
-        const energy = Math.max(0, prev.energy - tokenCost);
+    setIsRecalibrating(false);
+  }, 1500);
 
-        // If utility high → lower ΔS & ΔC slightly (successful coherence)
-        let predictionError = prev.predictionError;
-        let coherenceTension = prev.coherenceTension;
-        if (best && best.utility > 0.4) {
-          predictionError = Math.max(0, predictionError - 0.05);
-          coherenceTension = Math.max(0, coherenceTension - 0.03);
-        } else {
-          // failure → raise ΔS a bit
-          predictionError = Math.min(1, predictionError + 0.05);
-        }
+  setInput('');
+  setTimeout(() => inputRef.current?.focus(), 0);
+}; // ✅ This closes handleSubmit completely
 
-        return {
-          predictionError,
-          coherenceTension,
-          utility: best?.utility ?? prev.utility,
-          energy
-        };
-      });
-
-      setIsRecalibrating(false);
-    }, 1500);
   
 
   return (
