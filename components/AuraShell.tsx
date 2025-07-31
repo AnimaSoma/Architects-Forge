@@ -163,22 +163,18 @@ export default function AuraShell() {
     if (!input.trim()) return;
     
     // Add user message
-    setMessages(prev => [...prev, `You: ${input.trim()}`]);
-    
+     // ✅ This is safe here
+  setMessages(prev => [...prev, `You: ${input.trim()}`]);
 
-}
-    // Scar the blob for every user question
-    addScar();
+  addScar(); // also safe here
 
-    /* ---------- ISRM domain-specific override ---------- */
-    const override = interceptUserMessage(input);
-    if (override) {
-      setMessages(prev => [...prev, `Aura: ${override}`]);
-      setInput('');
-      inputRef.current?.focus();
-      return;
-    }
-
+  const override = interceptUserMessage(input);
+  if (override) {
+    setMessages(prev => [...prev, `Aura: ${override}`]);
+    setInput('');
+    inputRef.current?.focus();
+    return;
+  }
     /* ---------------- belief retrieval ---------------- */
     const tags = extractTags(input);
     const belief = retrieveBelief(tags);
