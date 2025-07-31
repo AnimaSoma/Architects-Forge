@@ -158,23 +158,7 @@ export default function AuraShell() {
 
   // (previous high-uncertainty injections removed for this simplified flow)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-    
-    // Add user message
-     // ✅ This is safe here
-  setMessages(prev => [...prev, `You: ${input.trim()}`]);
 
-  addScar(); // also safe here
-
-  const override = interceptUserMessage(input);
-  if (override) {
-    setMessages(prev => [...prev, `Aura: ${override}`]);
-    setInput('');
-    inputRef.current?.focus();
-    return;
-  }
     /* ---------------- belief retrieval ---------------- */
     const tags = extractTags(input);
     const belief = retrieveBelief(tags);
@@ -190,8 +174,24 @@ export default function AuraShell() {
         energy: 0.4
       });
       
-  
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!input.trim()) return;
+
+  // Add user message
+  setMessages(prev => [...prev, `You: ${input.trim()}`]);
+  addScar();
+
+  const override = interceptUserMessage(input);
+  if (override) {
+    setMessages(prev => [...prev, `Aura: ${override}`]);
+    setInput('');
+    inputRef.current?.focus();
+    return;
+  }
+
+  const tags = extractTags(input);
+  const belief = retrieveBelief(tags);    }
     // Simulate Aura's thinking process
     setIsRecalibrating(true);
     
