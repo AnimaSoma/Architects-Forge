@@ -194,22 +194,7 @@ export default function AuraShell() {
         setMessages(prev => [...prev, "Aura: Convergence Arena initiated. Agent cohorts injected. Predictive collapse imminent. Recalibration commencing..."]);
       }, 1000);
       // ✅ Now 'best' is defined — safe to log memory and reward
-if (best) {
-  const memoryEntry: MemoryEntry = {
-    topic: tags[0] || 'general',
-    input,
-    response,
-    deltaS: best.breakdown.deltaS,
-    deltaC: best.breakdown.deltaC,
-    utility: best.utility,
-    timestamp: Date.now()
-  };
-  auraMemory.addEntry(memoryEntry);
 
-  if (best.utility > 0.5) {
-    energySystem.rewardISRM(best.utility);
-  }
-}      
       setInput("");
       return;
     }
@@ -267,8 +252,22 @@ if (best) {
       }
 
       setMessages(prev => [...prev, `Aura: ${response}`]);
+if (best) {
+  const memoryEntry: MemoryEntry = {
+    topic: tags[0] || 'general',
+    input,
+    response,
+    deltaS: best.breakdown.deltaS,
+    deltaC: best.breakdown.deltaC,
+    utility: best.utility,
+    timestamp: Date.now()
+  };
+  auraMemory.addEntry(memoryEntry);
 
-      // If response useful, strengthen the referenced belief
+  if (best.utility > 0.5) {
+    energySystem.rewardISRM(best.utility);
+  }
+}            // If response useful, strengthen the referenced belief
       if (belief && best && best.utility > 0.4) {
         strengthenBelief(belief.id, 0.05);
       }
