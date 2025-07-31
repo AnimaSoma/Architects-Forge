@@ -6,7 +6,7 @@ import { useAuraMemory } from '../store/auraMemory';
 import { loadISRMHandbook } from '../utils/loadISRMHandbook';
 import { interceptUserMessage } from '../utils/isrmOverride';
 import { ModelMemory, MemoryEntry } from '../utils/ModelMemory'; // ISRM memory module
-
+import { EnergyManager } from '../utils/EnergyManager';
 
 export default function AuraShell() {
   const [messages, setMessages] = useState<string[]>([
@@ -41,6 +41,7 @@ export default function AuraShell() {
   /* ------------------------------------------------------------------ */
   const { isrmGraph, retrieveBelief, strengthenBelief } = useAuraMemory();
   const auraMemory = new ModelMemory(); // Initialize memory system
+  const energySystem = new EnergyManager();
   // load handbook once on mountx
   useEffect(() => {
     if (Object.keys(isrmGraph).length === 0) {
@@ -168,7 +169,9 @@ if (best) {
     utility: best.utility,
     timestamp: Date.now()
   };
-  auraMemory.addEntry(memoryEntry);
+  auraMemory.addEntry(memoryEntry);if (best.utility > 0.5) {
+  energySystem.rewardISRM(best.utility); // Recharge energy from meaningful ISRM mapping
+}
 }
     // Scar the blob for every user question
     addScar();
