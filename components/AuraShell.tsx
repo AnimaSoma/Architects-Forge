@@ -189,14 +189,7 @@ export default function AuraShell() {
         energy: 0.4
       });
       
-      // Inject convergence narrative
-      setTimeout(() => {
-        setMessages(prev => [...prev, "Aura: Convergence Arena initiated. Agent cohorts injected. Predictive collapse imminent. Recalibration commencing..."]);
-      }, 1000);
-      // ✅ Now 'best' is defined — safe to log memory and reward
-
-      setInput("");
-      return;
+  
     }
     // Simulate Aura's thinking process
     setIsRecalibrating(true);
@@ -307,7 +300,7 @@ if (best) {
     setInput("");
     // re-focus after state reset
     setTimeout(() => inputRef.current?.focus(), 0);
-  };
+  },[]);
 
   return (
     <>
