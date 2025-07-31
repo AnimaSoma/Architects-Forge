@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBlobQueue } from '../store/blobQueue';
-import { useAuraMemory } from '../store/auraMemory';
+import { useAuraMemory } from '../store/auraMemory'; 
 import { loadISRMHandbook } from '../utils/loadISRMHandbook';
 import { interceptUserMessage } from '../utils/isrmOverride';
 import { ModelMemory, MemoryEntry } from '../utils/ModelMemory'; // ISRM memory module
@@ -296,8 +296,8 @@ if (best) {
 
       setIsRecalibrating(false);
     }, 1500);
-    
-    setInput("");
+    useEffect(() => {  
+      setInput("");
     // re-focus after state reset
     setTimeout(() => inputRef.current?.focus(), 0);
   },[]);
