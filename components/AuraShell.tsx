@@ -160,20 +160,7 @@ export default function AuraShell() {
     // Add user message
     setMessages(prev => [...prev, `You: ${input.trim()}`]);
     
-    // ⬇️ Log memory entry
-if (best) {
-  const memoryEntry: MemoryEntry = {
-    topic: tags[0] || 'general',
-    input,
-    response,
-    deltaS: best.deltaS,
-    deltaC: best.deltaC,
-    utility: best.utility,
-    timestamp: Date.now()
-  };
-  auraMemory.addEntry(memoryEntry);if (best.utility > 0.5) {
-  energySystem.rewardISRM(best.utility); // Recharge energy from meaningful ISRM mapping
-}
+
 }
     // Scar the blob for every user question
     addScar();
@@ -206,7 +193,23 @@ if (best) {
       setTimeout(() => {
         setMessages(prev => [...prev, "Aura: Convergence Arena initiated. Agent cohorts injected. Predictive collapse imminent. Recalibration commencing..."]);
       }, 1000);
-      
+      // ✅ Now 'best' is defined — safe to log memory and reward
+if (best) {
+  const memoryEntry: MemoryEntry = {
+    topic: tags[0] || 'general',
+    input,
+    response,
+    deltaS: best.breakdown.deltaS,
+    deltaC: best.breakdown.deltaC,
+    utility: best.utility,
+    timestamp: Date.now()
+  };
+  auraMemory.addEntry(memoryEntry);
+
+  if (best.utility > 0.5) {
+    energySystem.rewardISRM(best.utility);
+  }
+}      
       setInput("");
       return;
     }
